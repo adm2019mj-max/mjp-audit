@@ -1,0 +1,2346 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>MJP Audit System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #0D1B2A;
+  --navy2: #152335;
+  --navy3: #1E3045;
+  --blue: #1A6FBF;
+  --blue-light: #2E8FE8;
+  --accent: #F0A500;
+  --accent2: #E8D67A;
+  --green: #2DC97E;
+  --red: #E8445A;
+  --orange: #F07820;
+  --gray: #8A9BB0;
+  --gray2: #B8C8D8;
+  --surface: #162438;
+  --surface2: #1C2F44;
+  --surface3: #243650;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --text: #E8F0F8;
+  --text2: #A8BDD0;
+  --text3: #6A7F95;
+  --r: 12px;
+  --r-sm: 8px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  --font: 'Sarabun', sans-serif;
+  --mono: 'IBM Plex Mono', monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;-webkit-text-size-adjust:100%}
+body{background:var(--navy);color:var(--text);font-family:var(--font);min-height:100vh;overflow-x:hidden}
+
+/* ─── LOGIN PAGE ─── */
+.login-page{position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px}
+.login-page.hidden{display:none}
+.login-card{background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:32px 28px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
+.login-logo{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.login-logo-mark{width:44px;height:44px;background:var(--blue);border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;font-weight:700;color:#fff}
+.login-logo-text{font-size:16px;font-weight:700;color:var(--text)}
+.login-logo-sub{font-size:11px;color:var(--text3)}
+.login-title{font-size:20px;font-weight:700;color:var(--text);margin-bottom:6px}
+.login-sub{font-size:13px;color:var(--text3);margin-bottom:24px;line-height:1.5}
+.login-field{margin-bottom:14px}
+.login-field label{display:block;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px}
+.login-field input{width:100%;background:var(--navy3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font);font-size:14px;padding:10px 14px;outline:none;transition:.2s}
+.login-field input:focus{border-color:var(--blue);background:var(--surface3)}
+.login-field input::placeholder{color:var(--text3)}
+.login-error{background:rgba(232,68,90,0.1);border:1px solid rgba(232,68,90,0.3);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--red);margin-bottom:14px;display:none}
+.login-error.show{display:block}
+.btn-login{width:100%;padding:13px;background:linear-gradient(135deg,var(--blue),var(--blue-light));border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font);transition:.2s;margin-top:4px;letter-spacing:.3px}
+.btn-login:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(26,111,191,0.4)}
+.btn-login:active{transform:none}
+.login-viewer{text-align:center;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.btn-viewer{background:none;border:none;color:var(--blue-light);font-size:13px;cursor:pointer;font-family:var(--font);text-decoration:underline;text-underline-offset:3px}
+.viewer-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(240,165,0,0.1);border:1px solid rgba(240,165,0,0.3);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;color:var(--accent)}
+/* topbar user indicator */
+.user-pill{display:flex;align-items:center;gap:7px;padding:5px 12px;background:var(--surface3);border:1px solid var(--border2);border-radius:20px;font-size:12px;font-weight:500;color:var(--text2)}
+.user-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot-auditor{background:var(--green)}
+.dot-viewer{background:var(--accent)}
+.btn-logout{padding:5px 10px;background:none;border:1px solid var(--border2);border-radius:6px;color:var(--text3);font-size:11px;cursor:pointer;font-family:var(--font);transition:.2s}
+.btn-logout:hover{color:var(--red);border-color:var(--red)}
+/* viewer overlay on form */
+.viewer-lock-bar{background:rgba(240,165,0,0.08);border:1px solid rgba(240,165,0,0.25);border-radius:var(--r-sm);padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--accent)}
+.viewer-lock-bar span{flex:1}
+
+/* ─── NAV ─── */
+.topbar{background:var(--navy2);border-bottom:1px solid var(--border2);padding:0 16px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.topbar-logo{display:flex;align-items:center;gap:10px}
+.logo-mark{width:32px;height:32px;background:var(--blue);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;font-weight:500;color:#fff;letter-spacing:.5px}
+.logo-text{font-size:13px;font-weight:600;color:var(--text);letter-spacing:.5px}
+.logo-sub{font-size:10px;color:var(--text3);font-family:var(--mono)}
+.nav-tabs{display:flex;gap:2px;background:var(--surface);border-radius:10px;padding:3px}
+.nav-tab{padding:6px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;color:var(--text3);transition:.2s;border:none;background:none;font-family:var(--font)}
+.nav-tab.active{background:var(--blue);color:#fff}
+.nav-tab:hover:not(.active){color:var(--text2);background:var(--surface3)}
+
+/* ─── PAGES ─── */
+.page{display:none;min-height:calc(100vh - 56px)}
+.page.active{display:block}
+
+/* ─── FORM PAGE ─── */
+.form-wrap{max-width:720px;margin:0 auto;padding:20px 16px 80px}
+.form-header{background:linear-gradient(135deg,var(--blue) 0%,#0E4A8A 100%);border-radius:var(--r);padding:20px;margin-bottom:20px;position:relative;overflow:hidden}
+.form-header::after{content:'';position:absolute;top:-20px;right:-20px;width:100px;height:100px;background:rgba(255,255,255,0.06);border-radius:50%}
+.form-header-title{font-size:17px;font-weight:700;color:#fff;margin-bottom:4px}
+.form-header-sub{font-size:12px;color:rgba(255,255,255,0.7)}
+.form-header-meta{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.3px}
+.badge-blue{background:rgba(255,255,255,0.15);color:#fff}
+.badge-amber{background:rgba(240,165,0,0.2);color:var(--accent2)}
+
+/* info grid */
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.info-grid.single{grid-template-columns:1fr}
+.field-group{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden}
+.field-label{font-size:10px;font-weight:600;color:var(--text3);padding:8px 12px 4px;text-transform:uppercase;letter-spacing:.8px}
+.field-input{width:100%;background:none;border:none;color:var(--text);font-family:var(--font);font-size:14px;padding:4px 12px 10px;outline:none}
+.field-input::placeholder{color:var(--text3)}
+select.field-input{cursor:pointer}
+select.field-input option{background:var(--navy2);color:var(--text)}
+
+/* section card */
+.section-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:16px;overflow:hidden}
+.section-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
+.section-num{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.section-title{font-size:14px;font-weight:600;color:var(--text);flex:1}
+.section-badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600}
+.section-badge.remote{background:rgba(45,201,126,0.15);color:var(--green)}
+.section-badge.onsite{background:rgba(240,165,0,0.15);color:var(--accent)}
+.section-badge.mix{background:rgba(26,111,191,0.2);color:var(--blue-light)}
+.section-chevron{color:var(--text3);font-size:18px;transition:.3s;flex-shrink:0}
+.section-head.collapsed .section-chevron{transform:rotate(-90deg)}
+.section-body{padding:12px 16px 16px}
+
+/* item row */
+.item{border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;margin-bottom:10px;background:var(--surface2);transition:.15s}
+.item:last-child{margin-bottom:0}
+.item-head{display:flex;align-items:flex-start;gap:8px;margin-bottom:10px}
+.item-num{width:22px;height:22px;border-radius:6px;background:var(--navy3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--text3);flex-shrink:0;margin-top:1px}
+.item-desc{font-size:13px;font-weight:500;color:var(--text);flex:1;line-height:1.4}
+.item-critical{color:var(--red);font-size:10px;font-weight:700;letter-spacing:.5px;background:rgba(232,68,90,0.1);padding:1px 6px;border-radius:4px;margin-left:4px;vertical-align:middle}
+.item-detail{font-size:11px;color:var(--text3);line-height:1.5;margin-bottom:10px;padding:8px 10px;background:var(--navy3);border-radius:6px;border-left:3px solid var(--border2)}
+
+/* score control */
+.score-row{display:flex;align-items:center;gap:8px}
+.score-label{font-size:11px;color:var(--text3);min-width:72px}
+.score-btns{display:flex;gap:4px;flex-wrap:wrap;flex:1}
+.score-btn{min-width:36px;height:34px;border-radius:6px;border:1px solid var(--border2);background:var(--navy3);color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;transition:.15s;font-family:var(--mono);padding:0 8px}
+.score-btn:hover{border-color:var(--blue);color:var(--blue-light)}
+.score-btn.selected-0{background:rgba(232,68,90,0.2);border-color:var(--red);color:var(--red)}
+.score-btn.selected-full{background:rgba(45,201,126,0.2);border-color:var(--green);color:var(--green)}
+.score-btn.selected-mid{background:rgba(240,165,0,0.15);border-color:var(--accent);color:var(--accent)}
+.score-btn.selected-na{background:rgba(138,155,176,0.15);border-color:var(--gray);color:var(--gray2)}
+
+.rubric-toggle{font-size:10px;color:var(--blue-light);cursor:pointer;margin-top:4px;display:inline-flex;align-items:center;gap:3px}
+.rubric-box{display:none;margin-top:8px;background:var(--navy);border-radius:6px;padding:8px 10px;border:1px solid var(--border)}
+.rubric-box.open{display:block}
+.rubric-row{display:flex;gap:8px;font-size:11px;color:var(--text2);padding:3px 0;border-bottom:1px solid var(--border)}
+.rubric-row:last-child{border:none}
+.rubric-score{font-family:var(--mono);font-weight:600;min-width:28px;color:var(--accent)}
+.rubric-desc{line-height:1.4;color:var(--text3)}
+
+.notes-input{width:100%;background:var(--navy3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font);font-size:12px;padding:8px 10px;resize:none;outline:none;min-height:40px;margin-top:8px}
+.notes-input:focus{border-color:var(--blue)}
+
+/* critical section */
+.critical-card{background:rgba(232,68,90,0.06);border:1px solid rgba(232,68,90,0.25);border-radius:var(--r);margin-bottom:16px;overflow:hidden}
+.critical-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid rgba(232,68,90,0.15)}
+.critical-icon{width:28px;height:28px;background:rgba(232,68,90,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.critical-title{font-size:14px;font-weight:700;color:var(--red)}
+.critical-sub{font-size:11px;color:var(--text3)}
+.critical-body{padding:12px 16px 16px}
+.ci-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);margin-bottom:8px}
+.ci-item:last-child{margin-bottom:0}
+.ci-code{font-family:var(--mono);font-size:10px;font-weight:600;color:var(--red);background:rgba(232,68,90,0.1);padding:2px 6px;border-radius:4px;flex-shrink:0}
+.ci-desc{font-size:12px;color:var(--text2);flex:1;line-height:1.4}
+.ci-btns{display:flex;gap:4px;flex-shrink:0}
+.ci-btn{padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--navy3);color:var(--text3);font-size:11px;font-weight:600;cursor:pointer;transition:.15s;font-family:var(--font)}
+.ci-btn:hover{border-color:var(--blue)}
+.ci-btn.pass{background:rgba(45,201,126,0.15);border-color:var(--green);color:var(--green)}
+.ci-btn.fail{background:rgba(232,68,90,0.15);border-color:var(--red);color:var(--red)}
+
+/* score summary bar */
+.score-bar-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:16px;position:sticky;bottom:72px;backdrop-filter:blur(12px)}
+.score-bar-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.score-total{font-size:20px;font-weight:700;font-family:var(--mono);color:var(--text)}
+.score-max{font-size:13px;color:var(--text3)}
+.score-pct{font-size:20px;font-weight:700;font-family:var(--mono)}
+.bar-track{height:8px;background:var(--navy3);border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:.4s cubic-bezier(.4,0,.2,1)}
+.score-grade{font-size:12px;font-weight:600;margin-top:8px;display:flex;align-items:center;gap:6px}
+
+/* submit btn */
+.submit-area{padding:16px 0}
+.btn-submit{width:100%;padding:16px;background:linear-gradient(135deg,var(--blue),var(--blue-light));border:none;border-radius:var(--r);color:#fff;font-size:16px;font-weight:700;cursor:pointer;font-family:var(--font);letter-spacing:.3px;transition:.2s;box-shadow:0 4px 20px rgba(26,111,191,0.4)}
+.btn-submit:hover{transform:translateY(-1px);box-shadow:0 6px 28px rgba(26,111,191,0.5)}
+.btn-submit:active{transform:none}
+.btn-submit:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-draft{width:100%;padding:12px;background:var(--surface3);border:1px dashed var(--accent);border-radius:var(--r);color:var(--accent);font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font);transition:.2s;margin-bottom:10px}
+.btn-draft:hover{background:rgba(240,165,0,0.1)}
+.draft-banner{background:rgba(240,165,0,0.1);border:1px solid rgba(240,165,0,0.4);border-radius:var(--r-sm);padding:10px 14px;margin-bottom:16px;display:none;align-items:center;gap:10px}
+.draft-banner.show{display:flex}
+.draft-dot{width:8px;height:8px;background:var(--accent);border-radius:50%;flex-shrink:0;animation:pulse 1.5s infinite}
+.draft-text{font-size:12px;color:var(--accent);font-weight:500;flex:1}
+.draft-clear{font-size:11px;color:var(--text3);cursor:pointer;padding:3px 8px;border:1px solid var(--border2);border-radius:5px;background:none;font-family:var(--font)}
+.draft-clear:hover{color:var(--red);border-color:var(--red)}
+
+/* toast */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r);padding:12px 20px;font-size:13px;font-weight:500;z-index:999;transition:.3s;opacity:0;max-width:320px;text-align:center;box-shadow:var(--shadow)}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.toast.success{border-color:var(--green);color:var(--green)}
+.toast.error{border-color:var(--red);color:var(--red)}
+
+/* ─── DASHBOARD PAGE ─── */
+.dash-wrap{max-width:1100px;margin:0 auto;padding:20px 16px 40px}
+.dash-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.dash-title{font-size:20px;font-weight:700;color:var(--text)}
+.dash-filters{display:flex;gap:8px;flex-wrap:wrap}
+.filter-select{background:var(--surface);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font);font-size:13px;padding:7px 12px;outline:none;cursor:pointer}
+.filter-select option{background:var(--navy2)}
+
+/* kpi row */
+.kpi-row{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px}
+@media(min-width:640px){.kpi-row{grid-template-columns:repeat(4,1fr)}}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px}
+.kpi-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px}
+.kpi-val{font-size:26px;font-weight:700;font-family:var(--mono);line-height:1}
+.kpi-sub{font-size:11px;color:var(--text3);margin-top:4px}
+.kpi-trend{font-size:12px;font-weight:600;margin-top:6px}
+.trend-up{color:var(--green)}
+.trend-dn{color:var(--red)}
+
+/* chart card */
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:16px}
+.chart-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+.chart-title span{font-size:11px;color:var(--text3);font-weight:400}
+
+/* bar chart */
+.bar-chart{display:flex;flex-direction:column;gap:8px}
+.bc-row{display:flex;align-items:center;gap:10px}
+.bc-label{font-size:12px;color:var(--text2);min-width:80px;text-align:right;font-family:var(--mono)}
+.bc-track{flex:1;height:24px;background:var(--navy3);border-radius:4px;overflow:hidden;position:relative}
+.bc-fill{height:100%;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;font-size:11px;font-weight:700;font-family:var(--mono);color:#fff;transition:.8s cubic-bezier(.4,0,.2,1);min-width:30px}
+.bc-val{font-size:11px;font-family:var(--mono);font-weight:600;min-width:44px}
+
+/* property grid */
+.prop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:20px}
+.prop-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;cursor:pointer;transition:.2s}
+.prop-card:hover{border-color:var(--blue);background:var(--surface3)}
+.prop-card.critical-fail{border-color:rgba(232,68,90,0.4);background:rgba(232,68,90,0.05)}
+.prop-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.prop-code{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--blue-light);background:rgba(26,111,191,0.15);padding:2px 7px;border-radius:4px}
+.prop-grade{font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px}
+.grade-ex{background:rgba(45,201,126,0.15);color:var(--green)}
+.grade-gd{background:rgba(45,201,126,0.1);color:#8de0b5}
+.grade-ok{background:rgba(240,165,0,0.15);color:var(--accent)}
+.grade-ni{background:rgba(232,68,90,0.12);color:var(--red)}
+.grade-cf{background:rgba(232,68,90,0.2);color:var(--red)}
+.prop-name{font-size:13px;font-weight:500;color:var(--text);margin-bottom:6px;line-height:1.3}
+.prop-mini-bar{height:5px;background:var(--navy3);border-radius:3px;overflow:hidden;margin-bottom:6px}
+.prop-mini-fill{height:100%;border-radius:3px}
+.prop-meta{display:flex;justify-content:space-between;font-size:10px;color:var(--text3)}
+
+/* ─── HISTORY PAGE ─── */
+.history-wrap{max-width:960px;margin:0 auto;padding:20px 16px 40px}
+.history-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.history-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn-print{display:flex;align-items:center;gap:6px;padding:8px 16px;background:var(--blue);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);transition:.2s}
+.btn-print:hover{background:var(--blue-light)}
+.btn-export{padding:8px 14px;background:var(--surface3);border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:13px;cursor:pointer;font-family:var(--font)}
+.hist-table-wrap{overflow-x:auto}
+.hist-table{width:100%;border-collapse:collapse;font-size:12px}
+.hist-table th{padding:10px 12px;background:var(--surface3);color:var(--text3);font-weight:600;text-align:left;white-space:nowrap;font-size:11px;letter-spacing:.5px;border-bottom:2px solid var(--border2)}
+.hist-table td{padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text2);white-space:nowrap}
+.hist-table tr:hover td{background:var(--surface3)}
+.hist-table .col-pct{font-family:var(--mono);font-weight:700}
+.hist-table .col-grade{padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700}
+.summary-year{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:16px}
+.summary-year-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+.year-kpi-row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(min-width:500px){.year-kpi-row{grid-template-columns:repeat(4,1fr)}}
+.year-kpi{text-align:center;padding:10px;background:var(--surface2);border-radius:8px}
+.year-kpi-val{font-size:22px;font-weight:700;font-family:var(--mono)}
+.year-kpi-label{font-size:10px;color:var(--text3);margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
+
+/* ─── PRINT STYLES ─── */
+@media print{
+  body{background:#fff!important;color:#000!important}
+  .topbar,.nav-tabs,.score-bar-wrap,.btn-print,.btn-export,.dash-filters,
+  .history-filters,.modal-overlay,.toast,#page-form,#page-dashboard,#page-setup,
+  .print-hide{display:none!important}
+  .page{display:none!important}
+  #print-area{display:block!important}
+  .print-page{page-break-after:always;padding:20px;font-family:'Sarabun',sans-serif}
+  .print-header{border-bottom:3px solid #1A6FBF;padding-bottom:12px;margin-bottom:16px}
+  .print-logo{font-size:18px;font-weight:700;color:#1A6FBF}
+  .print-sub{font-size:12px;color:#666;margin-top:2px}
+  .print-meta{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:12px 0;font-size:11px}
+  .print-meta-item{display:flex;gap:6px}
+  .print-meta-label{color:#666;min-width:80px}
+  .print-meta-val{font-weight:600}
+  .print-section-title{background:#1A6FBF;color:#fff;padding:6px 12px;font-size:12px;font-weight:700;margin:12px 0 6px;border-radius:4px}
+  .print-table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:12px}
+  .print-table th{background:#f0f4f8;padding:6px 8px;text-align:left;border:1px solid #ddd;font-size:10px}
+  .print-table td{padding:5px 8px;border:1px solid #ddd}
+  .print-grade{padding:2px 6px;border-radius:3px;font-weight:700;font-size:10px}
+  .pg-ex{background:#d4edda;color:#155724}
+  .pg-gd{background:#d1ecf1;color:#0c5460}
+  .pg-ok{background:#fff3cd;color:#856404}
+  .pg-ni{background:#f8d7da;color:#721c24}
+  .pg-cf{background:#f5c6cb;color:#721c24}
+  .print-summary-box{border:2px solid #1A6FBF;border-radius:8px;padding:12px;margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .print-kpi{text-align:center}
+  .print-kpi-val{font-size:20px;font-weight:700;color:#1A6FBF}
+  .print-kpi-label{font-size:9px;color:#666;margin-top:2px}
+  .print-sig{margin-top:32px;display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .print-sig-box{border-top:1px solid #000;padding-top:8px;font-size:10px;text-align:center}
+  .critical-status-pass{color:#155724;font-weight:700}
+  .critical-status-fail{color:#721c24;font-weight:700}
+  @page{margin:15mm 12mm;size:A4}
+}
+
+/* trend chart using canvas-like divs */
+.sparkline-wrap{display:flex;align-items:flex-end;gap:3px;height:48px;padding:4px 0}
+.spark-bar{flex:1;border-radius:3px 3px 0 0;min-width:8px;transition:.5s}
+
+/* heatmap */
+.heatmap{overflow-x:auto}
+.hm-table{border-collapse:collapse;width:100%;font-size:11px}
+.hm-table th{padding:6px 8px;color:var(--text3);font-weight:600;text-align:left;white-space:nowrap;font-size:10px;letter-spacing:.5px}
+.hm-table td{padding:6px 8px;border-top:1px solid var(--border);white-space:nowrap}
+.hm-cell{display:inline-block;width:44px;text-align:center;padding:3px 4px;border-radius:4px;font-family:var(--mono);font-size:11px;font-weight:600}
+
+/* critical fail list */
+.cf-list{display:flex;flex-direction:column;gap:8px}
+.cf-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(232,68,90,0.06);border:1px solid rgba(232,68,90,0.2);border-radius:var(--r-sm)}
+.cf-dot{width:8px;height:8px;background:var(--red);border-radius:50%;flex-shrink:0;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.cf-prop{font-size:12px;font-weight:600;color:var(--red);min-width:50px;font-family:var(--mono)}
+.cf-detail{font-size:12px;color:var(--text2);flex:1}
+.cf-date{font-size:10px;color:var(--text3);font-family:var(--mono)}
+
+/* detail modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);width:100%;max-width:540px;max-height:80vh;overflow-y:auto}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface)}
+.modal-title{font-size:16px;font-weight:700}
+.modal-close{width:32px;height:32px;border-radius:8px;border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center}
+.modal-body{padding:16px 20px}
+.modal-section-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin:12px 0 8px}
+.modal-score-row{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface2);border-radius:6px;margin-bottom:6px}
+.modal-score-name{font-size:12px;color:var(--text2)}
+.modal-score-val{font-family:var(--mono);font-size:13px;font-weight:600}
+
+/* Apps Script section */
+.script-card{background:var(--navy2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:16px;overflow:hidden}
+.script-head{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.script-title{font-size:14px;font-weight:600;color:var(--accent)}
+.script-body{padding:16px}
+.code-block{background:var(--navy);border:1px solid var(--border);border-radius:8px;padding:14px;font-family:var(--mono);font-size:11px;color:var(--text2);overflow-x:auto;white-space:pre;line-height:1.6;margin-bottom:12px}
+.btn-copy{padding:7px 14px;background:var(--surface3);border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:12px;cursor:pointer;font-family:var(--font);transition:.2s}
+.btn-copy:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
+.step-list{list-style:none;counter-reset:step}
+.step-list li{counter-increment:step;display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);align-items:flex-start}
+.step-list li:last-child{border:none}
+.step-list li::before{content:counter(step);min-width:24px;height:24px;background:var(--blue);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
+
+/* spinner */
+.spinner{width:20px;height:20px;border:2px solid var(--border2);border-top-color:var(--blue-light);border-radius:50%;animation:spin .7s linear infinite;display:none}
+.spinner.show{display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:420px){
+  .info-grid{grid-template-columns:1fr}
+  .kpi-row{grid-template-columns:repeat(2,1fr)}
+  .nav-tab{padding:6px 10px;font-size:12px}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ LOGIN PAGE ═══════════════════════════ -->
+<div class="login-page" id="login-page">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-mark">MJP</div>
+      <div>
+        <div class="login-logo-text">Audit System</div>
+        <div class="login-logo-sub">Major Property Service Co., Ltd.</div>
+      </div>
+    </div>
+    <div class="login-title">เข้าสู่ระบบ</div>
+    <div class="login-sub">กรุณาล็อกอินด้วยบัญชีที่ได้รับมอบหมาย<br>เพื่อเข้าใช้งานระบบประเมิน</div>
+
+    <div class="login-error" id="login-error">Username หรือ Password ไม่ถูกต้อง</div>
+
+    <div class="login-field">
+      <label>Username</label>
+      <input type="text" id="login-username" placeholder="กรอก Username..." autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('login-password').focus()">
+    </div>
+    <div class="login-field">
+      <label>Password</label>
+      <input type="password" id="login-password" placeholder="กรอก Password..." autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn-login" onclick="doLogin()">เข้าสู่ระบบ</button>
+
+    <div class="login-viewer">
+      <div style="font-size:12px;color:var(--text3);margin-bottom:8px">หรือ เข้าดูข้อมูลแบบ View Only</div>
+      <button class="btn-viewer" onclick="enterViewer()">เข้าในฐานะ Viewer (ดูได้อย่างเดียว)</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-logo">
+    <div class="logo-mark">MJP</div>
+    <div>
+      <div class="logo-text">Audit System</div>
+      <div class="logo-sub">Major Property Service</div>
+    </div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" id="tab-form" onclick="showPage('form')">ประเมิน</button>
+    <button class="nav-tab" onclick="showPage('dashboard')">Dashboard</button>
+    <button class="nav-tab" onclick="showPage('history')">ประวัติ</button>
+    <button class="nav-tab" id="tab-setup" onclick="showPage('setup')">ตั้งค่า</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <div class="user-pill" id="user-pill">
+      <span class="user-dot dot-viewer" id="user-dot"></span>
+      <span id="user-name-label">—</span>
+    </div>
+    <button class="btn-logout" onclick="doLogout()">ออกจากระบบ</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ FORM PAGE ═══════════════════════════ -->
+<div class="page active" id="page-form">
+<div class="form-wrap">
+
+  <!-- VIEWER LOCK BAR (แสดงเฉพาะ Viewer) -->
+  <div class="viewer-lock-bar" id="viewer-lock-bar" style="display:none">
+    <span>🔒</span>
+    <span>คุณอยู่ในโหมด <b>Viewer</b> — ดูข้อมูลได้อย่างเดียว ไม่สามารถกรอกหรือบันทึกได้</span>
+  </div>
+
+  <!-- DRAFT BANNER -->
+  <div class="draft-banner" id="draft-banner">
+    <span class="draft-dot"></span>
+    <span class="draft-text" id="draft-text">มี Draft ที่บันทึกค้างไว้ — กำลังโหลด...</span>
+    <button class="draft-clear" onclick="clearDraft()">ล้าง Draft</button>
+  </div>
+
+  <!-- header -->
+  <div class="form-header">
+    <div class="form-header-title">แบบประเมินการปฏิบัติงาน</div>
+    <div class="form-header-sub">เจ้าหน้าที่ธุรการหน่วยงาน — Rev.02 / ปี 2569</div>
+    <div class="form-header-meta">
+      <span class="badge badge-blue">100 คะแนน</span>
+      <span class="badge badge-amber">7 หมวด</span>
+      <span class="badge badge-blue">5 Critical Items</span>
+    </div>
+  </div>
+
+  <!-- info fields -->
+  <div class="info-grid">
+    <div class="field-group">
+      <div class="field-label">หน่วยงาน</div>
+      <select class="field-input" id="f-property">
+        <option value="">— เลือกหน่วยงาน (38 หน่วยงาน) —</option>
+        <optgroup label="── คอนโดมิเนียม ──">
+        <option value="RGH28">RGH28 — รีเจน โฮมบางซ่อน เฟส 28</option>
+        <option value="CCP">CCP — เซอร์เคิล คอนโดมิเนียม</option>
+        <option value="SPS">SPS — ศุภาลัย ปาร์ค ศรีนครินทร์</option>
+        <option value="RGH27">RGH27 — รีเจนท์ โฮมบางซ่อน เฟส 27</option>
+        <option value="STV">STV — สตาร์วิว พระราม 3</option>
+        <option value="PCM">PCM — พลัม คอนโด มิกซ์ แจ้งวัฒนะ</option>
+        <option value="HDS11">HDS11 — ไฮด์ สุขุมวิท 11 ⭐</option>
+        <option value="QCP">QCP — คิว ชิดลม เพชรบุรี</option>
+        <option value="APS">APS — แอสปาย สาทร - ท่าพระ ⭐</option>
+        <option value="HDS">HDS — ไฮด์ สุขุมวิท 13</option>
+        <option value="PTW">PTW — ปทุมวัน รีสอร์ท</option>
+        <option value="XIM">XIM — ซิม พระราม 3 - สุขสวัสดิ์</option>
+        <option value="TCR">TCR — เดอะ แคปปิตอล ราชปรารภ - วิภาวดี</option>
+        <option value="SCR">SCR — สุขุมวิท ซิตี้ รีสอร์ท</option>
+        <option value="PCS">PCS — พลัม คอนโด สามัคคี</option>
+        <option value="PCP">PCP — พลัม คอนโด พหลโยธิน 89 (เฟส 5)</option>
+        <option value="CUP">CUP — เดอะ คิวบ์ อะเมซ ศรีสุนทร ภูเก็ต</option>
+        <option value="PG9">PG9 — พี จี พระราม 9</option>
+        <option value="TMC">TMC — เดอะ มาสเตอร์ เซ็นเธรี่ยม อโศก-สุขุมวิท</option>
+        <option value="ACC">ACC — เอสเพน คอนโด เฟส ซี</option>
+        <option value="ACB">ACB — เอสเพน คอนโด เฟส บี</option>
+        <option value="TTG">TTG — เดอะ ทรีโอ การ์เด้น</option>
+        <option value="TCP">TCP — เดอะ ซิตี้ คอนโดมิเนียม 1 ตึกอี</option>
+        <option value="PIP">PIP — พิงผา คอนโดมิเนียม</option>
+        <option value="ZCX2">ZCX2 — สเคป เอ็กซ์ทู คอนโดมิเนียม</option>
+        <option value="APR">APR — เอ พลัส 2 @รัตนาธิเบศร์</option>
+        <option value="ZCP">ZCP — สเคป คอนโดมิเนียม</option>
+        <option value="OZP">OZP — โอโซน คอนโดเทล กะตะบีช ⭐</option>
+        <option value="NTB">NTB — นันทวัน บางนา กม.7</option>
+        <option value="BSR">BSR — บ้านกลางเมือง เอสเซ้นส์ พระราม 9 - ลาดพร้าว</option>
+        </optgroup>
+        <optgroup label="── หมู่บ้านจัดสรร ──">
+        <option value="SRJ">SRJ — สราญสิริ ราชพฤกษ์ - แจ้งวัฒนะ</option>
+        <option value="PLX">PLX — เพล็กซ์ บางนา</option>
+        <option value="TRR">TRR — เดอะ เทอเรส รามอินทรา 65</option>
+        <option value="CKH">CKH — เฌอคูน สุขุมวิท 77 ⭐</option>
+        <option value="BUL">BUL — บ้านกลางเมือง เออบาเนี่ยน ลาดพร้าว-เสนา 1</option>
+        <option value="ALS">ALS — อลิสา พลูวิลล่า ภูเก็ต ⭐</option>
+        <option value="RGB">RGB — รีเจน โฮม บางนา</option>
+        <option value="RGW">RGW — รีเจน โฮม วุฒากาศ</option>
+        </optgroup>
+      </select>
+    </div>
+    <div class="field-group">
+      <div class="field-label">รอบประเมิน (เดือน/ปี)</div>
+      <input class="field-input" id="f-period" type="month" value="">
+    </div>
+    <div class="field-group">
+      <div class="field-label">ชื่อ-สกุล ผู้รับการประเมิน</div>
+      <input class="field-input" id="f-staff" type="text" placeholder="ระบุชื่อ...">
+    </div>
+    <div class="field-group">
+      <div class="field-label">ตำแหน่ง</div>
+      <select class="field-input" id="f-position">
+        <option value="">— เลือก —</option>
+        <option>เจ้าหน้าที่ธุรการ</option>
+        <option>เจ้าหน้าที่ธุรการช่าง</option>
+        <option>เจ้าหน้าที่การเงินและธุรการ</option>
+        <option>เจ้าหน้าที่ประชาสัมพันธ์</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <div class="field-label">ชื่อผู้ Audit</div>
+      <input class="field-input" id="f-auditor" type="text" placeholder="ระบุชื่อ...">
+    </div>
+    <div class="field-group">
+      <div class="field-label">วันที่ Audit</div>
+      <input class="field-input" id="f-date" type="date">
+    </div>
+  </div>
+
+  <!-- SCORE BAR (sticky) -->
+  <div class="score-bar-wrap" id="score-bar">
+    <div class="score-bar-label">
+      <div>
+        <span class="score-total" id="sb-score">0</span>
+        <span class="score-max" id="sb-max"> / 100 คะแนน</span>
+      </div>
+      <span class="score-pct" id="sb-pct">0%</span>
+    </div>
+    <div class="bar-track"><div class="bar-fill" id="sb-bar" style="width:0%;background:var(--gray)"></div></div>
+    <div class="score-grade" id="sb-grade"><span style="color:var(--text3)">— กรอกคะแนนเพื่อดูผล —</span></div>
+  </div>
+
+  <!-- CRITICAL ITEMS -->
+  <div class="critical-card">
+    <div class="critical-head">
+      <div class="critical-icon">⚠</div>
+      <div>
+        <div class="critical-title">Critical Items — ต้องผ่านทุกข้อ</div>
+        <div class="critical-sub">ไม่ผ่านข้อใดข้อหนึ่ง = ผลรวม "Critical Fail" ทันที</div>
+      </div>
+    </div>
+    <div class="critical-body" id="critical-body"></div>
+  </div>
+
+  <!-- SECTIONS -->
+  <div id="sections-wrap"></div>
+
+  <!-- SUBMIT -->
+  <div class="submit-area">
+    <button class="btn-draft" onclick="saveDraft()">
+      ⏸ บันทึก Draft — กรอกต่อภายหลัง
+    </button>
+    <button class="btn-submit" id="btn-submit" onclick="submitForm()">
+      <span id="submit-text">บันทึกผลการประเมิน → Google Sheets</span>
+      <span class="spinner" id="submit-spin"></span>
+    </button>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ DASHBOARD PAGE ═══════════════════════════ -->
+<div class="page" id="page-dashboard">
+<div class="dash-wrap">
+  <div class="dash-topbar">
+    <div class="dash-title">Executive Dashboard</div>
+    <div class="dash-filters">
+      <select class="filter-select" id="dash-month" onchange="renderDash()">
+        <option value="all">ทุกเดือน</option>
+      </select>
+      <select class="filter-select" id="dash-prop" onchange="renderDash()">
+        <option value="all">ทุกหน่วยงาน</option>
+      </select>
+      <button class="btn-print" onclick="manualSync()" style="background:var(--surface3);border:1px solid var(--border2);color:var(--text2)">
+        <span style="font-size:14px">↻</span> รีเฟรชข้อมูล
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-label">คะแนนเฉลี่ย</div>
+      <div class="kpi-val" id="kpi-avg">—</div>
+      <div class="kpi-sub" id="kpi-avg-sub">เฉลี่ย %</div>
+      <div class="kpi-trend" id="kpi-avg-trend"></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">จำนวน Audit</div>
+      <div class="kpi-val" id="kpi-count">—</div>
+      <div class="kpi-sub">ครั้งทั้งหมด</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">ผ่านเกณฑ์ 70%</div>
+      <div class="kpi-val" id="kpi-pass" style="color:var(--green)">—</div>
+      <div class="kpi-sub" id="kpi-pass-sub">หน่วยงาน</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Critical Fail</div>
+      <div class="kpi-val" id="kpi-cf" style="color:var(--red)">—</div>
+      <div class="kpi-sub">ครั้งล่าสุด</div>
+    </div>
+  </div>
+
+  <!-- Critical Fail Alert -->
+  <div class="chart-card" id="cf-alert-card" style="display:none">
+    <div class="chart-title">⚠ Critical Fail — ต้องดำเนินการทันที <span id="cf-date-label"></span></div>
+    <div class="cf-list" id="cf-list"></div>
+  </div>
+
+  <!-- Score by property -->
+  <div class="chart-card">
+    <div class="chart-title">คะแนนรายหน่วยงาน (เดือนล่าสุด) <span id="bar-month-label"></span></div>
+    <div class="bar-chart" id="bar-chart"></div>
+  </div>
+
+  <!-- Trend -->
+  <div class="chart-card">
+    <div class="chart-title">Trend คะแนนรายเดือน <span>6 เดือนล่าสุด</span></div>
+    <div id="trend-chart"></div>
+  </div>
+
+  <!-- Heatmap -->
+  <div class="chart-card">
+    <div class="chart-title">คะแนนแยกหมวด × หน่วยงาน <span>เดือนล่าสุด</span></div>
+    <div class="heatmap"><table class="hm-table" id="hm-table"></table></div>
+  </div>
+
+  <!-- Property grid -->
+  <div class="chart-title" style="margin-bottom:12px">รายละเอียดทุกหน่วยงาน</div>
+  <div class="prop-grid" id="prop-grid"></div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ HISTORY PAGE ═══════════════════════════ -->
+<div class="page" id="page-history">
+<div class="history-wrap">
+
+  <div class="history-topbar">
+    <div style="font-size:20px;font-weight:700;color:var(--text)">ประวัติการประเมิน</div>
+    <div class="history-filters">
+      <select class="filter-select" id="hist-year" onchange="renderHistory()">
+        <option value="all">ทุกปี</option>
+      </select>
+      <select class="filter-select" id="hist-month" onchange="renderHistory()">
+        <option value="all">ทุกเดือน</option>
+      </select>
+      <select class="filter-select" id="hist-prop" onchange="renderHistory()">
+        <option value="all">ทุกหน่วยงาน</option>
+      </select>
+      <button class="btn-print" onclick="printReport()">
+        <span style="font-size:15px">⎙</span> พิมพ์รายงาน
+      </button>
+      <button class="btn-export" onclick="exportCSV()">Export CSV</button>
+    </div>
+  </div>
+
+  <!-- สรุปรายปี -->
+  <div id="year-summary-wrap"></div>
+
+  <!-- ตารางรายละเอียด -->
+  <div class="chart-card">
+    <div class="chart-title" id="hist-table-title">รายการประเมินทั้งหมด</div>
+    <div class="hist-table-wrap">
+      <table class="hist-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>รอบ</th>
+            <th>หน่วยงาน</th>
+            <th>พนักงาน</th>
+            <th>ตำแหน่ง</th>
+            <th>คะแนน</th>
+            <th>%</th>
+            <th>ผล</th>
+            <th>Critical</th>
+            <th>ผู้ Audit</th>
+            <th>วันที่</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="hist-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════ PRINT AREA (hidden on screen) ═══════════════════════════ -->
+<div id="print-area" style="display:none"></div>
+
+<!-- ═══════════════════════════ SETUP PAGE ═══════════════════════════ -->
+<div class="page" id="page-setup">
+<div class="form-wrap">
+  <div class="form-header">
+    <div class="form-header-title">ตั้งค่าการเชื่อมต่อ Google Sheets</div>
+    <div class="form-header-sub">เชื่อมต่อผ่าน Google Apps Script Middleware</div>
+  </div>
+
+  <div class="field-group" style="margin-bottom:16px">
+    <div class="field-label">Apps Script Web App URL</div>
+    <input class="field-input" id="cfg-url" type="url" placeholder="https://script.google.com/macros/s/.../exec" style="padding:10px 12px">
+  </div>
+  <button onclick="saveConfig()" style="padding:10px 20px;background:var(--blue);border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font);margin-bottom:24px">บันทึก URL</button>
+  <button onclick="testConnection()" style="padding:10px 20px;background:var(--surface3);border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font);margin-left:8px;margin-bottom:24px">ทดสอบการเชื่อมต่อ</button>
+
+  <!-- ─── อัปโหลดข้อมูลเก่าขึ้น Sheet ─── -->
+  <div style="background:rgba(26,111,191,0.08);border:1px solid rgba(26,111,191,0.3);border-radius:var(--r);padding:16px;margin-bottom:16px">
+    <div style="font-size:14px;font-weight:700;color:var(--blue-light);margin-bottom:6px">⬆ อัปโหลดข้อมูลเก่าขึ้น Google Sheet</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.6">
+      สำหรับข้อมูลที่เคยกรอกไว้ในเครื่องนี้ก่อนตั้งค่า Google Sheet<br>
+      ระบบจะส่งข้อมูลในเครื่องที่ <b style="color:var(--text2)">ยังไม่เคยขึ้น Sheet</b> ทั้งหมดไปบันทึกใน Google Sheet<br>
+      ข้อมูลในเครื่องนี้: <span id="local-count" style="font-weight:700;color:var(--text2)">กำลังโหลด...</span>
+    </div>
+    <button onclick="uploadOldData()" id="btn-upload-old" style="padding:9px 16px;background:var(--blue);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font)">
+      <span id="upload-old-text">อัปโหลดข้อมูลเก่าขึ้น Sheet</span>
+      <span class="spinner" id="upload-old-spin"></span>
+    </button>
+    <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5">
+      ⚠ ต้องตั้งค่าและบันทึก Google Sheet URL ด้านบนให้เรียบร้อยก่อน<br>
+      ⚠ อย่ากดซ้ำหลายครั้ง เพราะข้อมูลอาจถูกบันทึกซ้ำใน Sheet
+    </div>
+  </div>
+
+  <!-- ─── จัดการข้อมูล ─── -->
+  <div style="background:rgba(232,68,90,0.06);border:1px solid rgba(232,68,90,0.2);border-radius:var(--r);padding:16px;margin-bottom:24px">
+    <div style="font-size:14px;font-weight:700;color:var(--red);margin-bottom:6px">⚠ จัดการข้อมูล</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.6">
+      ข้อมูลทั้งหมดถูกเก็บไว้ใน Browser (localStorage) ของเครื่องนี้<br>
+      จำนวนข้อมูลที่บันทึกอยู่: <span id="data-count" style="font-weight:700;color:var(--text2)">กำลังโหลด...</span>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="showDataCount()" style="padding:8px 14px;background:var(--surface3);border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:13px;cursor:pointer;font-family:var(--font)">รีเฟรชจำนวน</button>
+      <button onclick="clearAllData()" style="padding:8px 14px;background:rgba(232,68,90,0.15);border:1px solid rgba(232,68,90,0.3);border-radius:8px;color:var(--red);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font)">ล้างข้อมูลทั้งหมด</button>
+    </div>
+  </div>
+
+  <div class="script-card">
+    <div class="script-head">
+      <span class="script-title">Google Apps Script Code</span>
+      <button class="btn-copy" onclick="copyScript()">Copy Code</button>
+    </div>
+    <div class="script-body">
+      <p style="font-size:12px;color:var(--text3);margin-bottom:12px">Copy code ด้านล่างนี้ไปวางใน Google Apps Script ที่ผูกกับ Spreadsheet ของคุณ</p>
+      <div class="code-block" id="script-code">const SHEET_ID = 'YOUR_SPREADSHEET_ID_HERE';
+const SHEET_NAME = 'AuditResults';
+
+const HEADERS = [
+  'timestamp','property','period','staff','position',
+  'auditor','auditDate','totalScore','effectiveMax','percentage',
+  'grade','criticalPass',
+  'cat1','cat2','cat3','cat4','cat5','cat6','cat7',
+  'criticalDetails','notes'
+];
+
+// บันทึกข้อมูล (เรียกตอนกด Submit ในแอป)
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    let sheet = ss.getSheetByName(SHEET_NAME) || ss.insertSheet(SHEET_NAME);
+
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(HEADERS);
+    }
+
+    sheet.appendRow([
+      new Date().toISOString(),
+      data.property, data.period, data.staff,
+      data.position, data.auditor, data.auditDate,
+      data.totalScore, data.effectiveMax, data.percentage,
+      data.grade, data.criticalPass === true,
+      data.cat1, data.cat2, data.cat3, data.cat4,
+      data.cat5, data.cat6, data.cat7,
+      JSON.stringify(data.criticalDetails || {}),
+      data.notes || ''
+    ]);
+
+    return ContentService
+      .createTextOutput(JSON.stringify({status:'ok'}))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({status:'error', msg:err.message}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// อ่านข้อมูลทั้งหมด (เรียกตอนเปิด Dashboard / กดรีเฟรช)
+function doGet(e) {
+  try {
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const sheet = ss.getSheetByName(SHEET_NAME);
+    if (!sheet || sheet.getLastRow() <= 1) {
+      return ContentService
+        .createTextOutput(JSON.stringify({data:[]}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    const rows = sheet.getDataRange().getValues();
+    const headers = rows[0];
+    const data = rows.slice(1).map(r => {
+      const obj = {};
+      headers.forEach((h,i) => {
+        let v = r[i];
+        if (v instanceof Date) v = v.toISOString();
+        obj[h] = v;
+      });
+      return obj;
+    });
+    return ContentService
+      .createTextOutput(JSON.stringify({data:data}))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({data:[], error:err.message}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}</div>
+
+      <p style="font-size:12px;color:var(--text3);margin:12px 0 8px;font-weight:600">ขั้นตอนการตั้งค่า:</p>
+      <ol class="step-list">
+        <li>เปิด Google Sheets → Extensions → Apps Script</li>
+        <li>แทนที่โค้ดเดิมด้วย code ด้านบน และเปลี่ยน <code style="background:var(--navy);padding:1px 5px;border-radius:3px;font-family:var(--mono);font-size:11px">YOUR_SPREADSHEET_ID_HERE</code> เป็น ID จริงของ Sheet</li>
+        <li>Deploy → New Deployment → Web App → Execute as Me → Anyone → Deploy</li>
+        <li>Copy URL ที่ได้ มาวางในช่อง "Apps Script Web App URL" ด้านบน</li>
+        <li>กด "ทดสอบการเชื่อมต่อ" เพื่อยืนยัน</li>
+      </ol>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title" id="modal-title">รายละเอียด</div>
+      <button class="modal-close" onclick="closeModal(null)">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════ DATA ═══════════════════════
+const AUDIT_STRUCTURE = {
+  sections: [
+    {
+      id:'cat1', num:1, title:'งานเอกสารและทะเบียนคุม',
+      type:'mix', max:20, color:'#F07820',
+      items:[
+        {id:'1_1',num:'1.1',desc:'การจัดทำหนังสือออก-เข้า',method:'On-site',max:3,
+         detail:'ตรวจสอบความถูกต้อง ครบถ้วน เป็นปัจจุบัน ของหนังสือออก-เข้าทั้งภายในและภายนอกบริษัท',
+         rubric:[[0,'ไม่มีหนังสือ/ไม่มีการบันทึก'],[1,'มีหนังสือแต่ทะเบียนไม่ครบ ไม่เป็นปัจจุบัน'],[2,'มีหนังสือและทะเบียน เป็นปัจจุบัน แต่ผิดมาตรฐานบางจุด'],[3,'หนังสือถูกต้องตามมาตรฐาน ทะเบียนครบ เป็นปัจจุบัน 100%']]},
+        {id:'1_2',num:'1.2',desc:'บันทึกภายในและเอกสารเสนอลงนาม',method:'On-site',max:3,
+         detail:'ตรวจสอบบันทึกภายในและเอกสารเสนอลงนาม ถูกต้องตามรูปแบบบริษัท จัดเก็บเป็นระบบ',
+         rubric:[[0,'ไม่มี/ไม่จัดเก็บ'],[1,'มีเอกสารแต่ไม่มีระบบจัดเก็บ'],[2,'มีระบบ แต่ไม่ครบ ไม่ Update'],[3,'จัดเก็บครบ เป็นระบบ Update สม่ำเสมอ']]},
+        {id:'1_3',num:'1.3',desc:'รายงานการประชุมและเอกสารประชุม',method:'ผสม',max:3,
+         detail:'จัดทำรายงานการประชุมหลังประชุมภายใน 3 วัน + เตรียมเอกสารวาระก่อน 7 วัน',
+         rubric:[[0,'ไม่จัดทำ'],[1,'จัดทำแต่ล่าช้าเกินกำหนด'],[2,'จัดทำตรงเวลาแต่เนื้อหาไม่ครบ'],[3,'จัดทำตรงเวลา ครบถ้วน ถูกต้องตามมาตรฐาน']]},
+        {id:'1_4',num:'1.4',desc:'Duty Roster และ Staff Attendance',method:'ผสม',max:3,
+         detail:'ตารางการปฏิบัติงานและบันทึกเวลาการทำงานของพนักงานในหน่วยงาน',
+         rubric:[[0,'ไม่มี/ไม่จัดทำ'],[1,'มีแต่ไม่ครบ ไม่เป็นปัจจุบัน'],[2,'มี 1 อย่างครบ'],[3,'มีทั้ง Duty Roster และ Attendance ครบ เป็นปัจจุบัน']]},
+        {id:'1_5',num:'1.5',desc:'ทะเบียนคุมแฟ้มเอกสาร / Key Card / Sticker',method:'On-site',max:3,
+         detail:'มีทะเบียนคุม ครบถ้วน เป็นปัจจุบัน',
+         rubric:[[0,'ไม่มีทะเบียนคุม'],[1,'มีแต่ไม่ครบ ไม่เป็นปัจจุบัน'],[2,'เอกสารครบ แต่ Key Card/Sticker ไม่ครบ'],[3,'ทะเบียนคุมครบทุกประเภท เป็นปัจจุบัน']]},
+        {id:'1_6',num:'1.6',desc:'จัดเก็บเอกสารตรวจสอบย้อนหลังได้ (Online+Offline)',method:'ผสม',max:3,
+         detail:'แฟ้มเอกสารและไฟล์ใน Google Drive ตรวจสอบย้อนหลังได้',
+         rubric:[[0,'ไม่จัดเก็บ'],[1,'จัดเก็บ Online หรือ Offline อย่างใดอย่างหนึ่ง (ไม่เป็นปัจจุบัน)'],[2,'จัดเก็บทั้ง 2 ระบบ แต่ไม่เป็นปัจจุบัน'],[3,'จัดเก็บทั้ง Online+Offline เป็นปัจจุบัน ตรวจสอบย้อนหลังได้ 100%']]},
+        {id:'1_7',num:'1.7',desc:'ส่งงานตรงเวลาตามที่กำหนด',method:'Remote',max:2,
+         detail:'ส่งรายงาน/บทสรุป/Duty Roster/Attendance/แผน PR ตามกำหนด',
+         rubric:[[0,'ส่งช้าเกิน 2 รายการ'],[1,'ส่งช้า 1-2 รายการ'],[2,'ส่งครบตรงเวลาทุกรายการ']]}
+      ]
+    },
+    {
+      id:'cat2', num:2, title:'การใช้งาน Application และระบบงาน',
+      type:'remote', max:27, color:'#2DC97E',
+      items:[
+        {id:'2_1',num:'2.1',desc:'Urbanice — อัตราการดาวน์โหลดของลูกบ้าน (Download Rate %)',method:'Remote',max:4,
+         inputType:'percent',
+         detail:'ดู % Active Users จาก Urbanice Dashboard แล้วกรอกตัวเลขในช่อง "กรอก %" ด้านล่างโดยตรง\nระบบจะคำนวณคะแนนให้อัตโนมัติตามเกณฑ์\n★ เป้าหมายหลัก: เจ้าหน้าที่ต้องเชิญชวนลูกบ้านดาวน์โหลดให้มากที่สุดทุกเดือน',
+         rubric:[[0,'น้อยกว่า 10% — ไม่มีการชักชวนหรือไม่ใช้งาน Urbanice'],[1,'10–29% — เริ่มต้น ต้องเร่งชักชวน'],[2,'30–49% — อยู่ในเกณฑ์พื้นฐาน มีการชักชวนบ้าง'],[3,'50–69% — ดี มีการชักชวนสม่ำเสมอ'],[4,'70% ขึ้นไป — ดีเยี่ยม ลูกบ้านส่วนใหญ่ใช้งานแล้ว']]},
+        {id:'2_2',num:'2.2',desc:'Urbanice — การจัดการงานแจ้งซ่อมตาม SLA',method:'Remote',max:4,
+         detail:'SLA ที่บริษัทกำหนด:\n• งานเร่งด่วน (ไฟฟ้า/น้ำ/ลิฟต์): ตอบรับภายใน 2 ชม. / แก้ไขภายใน 24 ชม.\n• งานทั่วไป: ตอบรับภายใน 24 ชม. / แก้ไขภายใน 7 วัน\n• งานจ้างภายนอก: ตอบรับภายใน 24 ชม. / แก้ไขภายใน 30 วัน\nวิธีตรวจ: ดูสถิติงานแจ้งซ่อมใน Urbanice — จำนวนงานค้าง / เกิน SLA / ปิดงานแล้ว',
+         rubric:[[0,'ไม่ใช้ Urbanice รับแจ้งซ่อมเลย หรือ มีงานค้างเกิน SLA เกิน 50% ของเดือน'],[1,'มีงานค้างเกิน SLA 30–50% หรือ ไม่มีการอัปเดตสถานะงาน'],[2,'มีงานค้างเกิน SLA น้อยกว่า 30% มีการอัปเดตสถานะบ้าง'],[3,'งานค้างเกิน SLA น้อยกว่า 10% ตอบรับและอัปเดตสม่ำเสมอ'],[4,'ไม่มีงานค้างเกิน SLA เลย ปิดงานครบ มีการแจ้งผลกลับลูกบ้านทุกเรื่อง']]},
+        {id:'2_3',num:'2.3',desc:'Urbanice — การประชาสัมพันธ์ตามแผน PR ประจำเดือน',method:'Remote',max:3,
+         detail:'ตรวจสอบการโพสต์ประชาสัมพันธ์ผ่าน Urbanice เทียบกับแผน PR ที่ส่งสำนักงานใหญ่ก่อนต้นเดือน\nวิธีตรวจ: เปิด Urbanice → ดู Feed/ประกาศ → นับจำนวนโพสต์เทียบกับแผน\n★ ต้องมีแผน PR ส่งสำนักงานใหญ่ก่อนเป็นเงื่อนไขขั้นต้น',
+         rubric:[[0,'ไม่ส่งแผน PR หรือไม่มีการโพสต์ใดใน Urbanice เดือนนั้น'],[1,'ส่งแผน PR แต่โพสต์จริงน้อยกว่า 50% ของแผน'],[2,'ส่งแผน PR และโพสต์จริง 50–89% ของแผน ตรงเวลา'],[3,'ส่งแผน PR ก่อนต้นเดือน และโพสต์จริงครบ 90–100% ตรงเวลา']]},
+        {id:'2_4',num:'2.4',desc:'มีช่องทางสื่อสาร Online กับลูกบ้าน',method:'Remote',max:2,na:true,
+         detail:'หน่วยงานมี Line OA / Line Group / Facebook / Urbanice ฯลฯ อย่างน้อย 1 ช่อง\n★ หากไม่มีช่องทาง Online เลย เลือก N/A → ระบบจะปรับฐานคะแนนอัตโนมัติ',
+         rubric:[['N/A','ไม่มีช่องทาง Online ใดๆ (ปรับฐานคะแนน)'],[0,'มีแต่ไม่ใช้งานในเดือนนั้น'],[2,'มีช่องทางและมีการใช้งานในเดือนนั้น']]},
+        {id:'2_5',num:'2.5',desc:'ความสม่ำเสมอในการโพสต์ตามแผน PR',method:'Remote',max:3,na:true,
+         detail:'นับโพสต์จริงเทียบกับแผน PR ที่ส่งไว้ (ไม่นับการตอบแชท)',
+         rubric:[['N/A','ไม่มีช่องทาง Online ใดๆ'],[0,'ไม่โพสต์เลย/ไม่มีแผน PR'],[1,'โพสต์ตามแผนน้อยกว่า 50%'],[2,'โพสต์ตามแผน 50-89%'],[3,'โพสต์ครบตามแผน 90-100%']]},
+        {id:'2_6',num:'2.6',desc:'คุณภาพเนื้อหาประกาศ Online (ขั้นพื้นฐาน)',method:'Remote',max:1,na:true,
+         detail:'ตรวจสุ่ม 3-5 ประกาศ: ไม่มีคำผิด + มี Logo/ชื่อหน่วยงาน + ระบุวันที่',
+         rubric:[['N/A','ไม่มีช่องทาง Online ใดๆ'],[0,'ผ่านเกณฑ์ไม่ครบ 3 ข้อ'],[1,'ผ่านครบ 3 ข้อ (คำถูก+Logo/ชื่อ+วันที่)']]},
+        {id:'2_7',num:'2.7',desc:'Operation Document - โครงสร้างโฟลเดอร์',method:'Remote',max:2,
+         detail:'โครงสร้าง Google Drive ถูกต้องตามที่บริษัทกำหนด',
+         rubric:[[0,'ไม่มีโครงสร้าง/ไม่จัดเก็บ'],[1,'มีโครงสร้างแต่ไม่ตรงมาตรฐาน'],[2,'ถูกต้อง 100%']]},
+        {id:'2_8',num:'2.8',desc:'Operation Document - ความเป็นปัจจุบัน',method:'Remote',max:2,
+         detail:'ไฟล์เอกสารเป็นปัจจุบัน Upload ตรงเวลา ไม่มีไฟล์ค้าง',
+         rubric:[[0,'ไม่เป็นปัจจุบันเกิน 2 เดือน'],[1,'เป็นปัจจุบันบางส่วน มีไฟล์ค้าง'],[2,'เป็นปัจจุบันทั้งหมด']]},
+        {id:'2_9',num:'2.9',desc:'Operation Document - การตั้งสิทธิ์ไฟล์',method:'Remote',max:2,
+         detail:'ตั้งสิทธิ์เหมาะสม ไม่เปิดสาธารณะ',
+         rubric:[[0,'เปิดสาธารณะ/ตั้งสิทธิ์ผิดพลาด'],[2,'ถูกต้องตามนโยบาย']]},
+        {id:'2_10',num:'2.10',desc:'AppSheet - บันทึกข้อมูลและ Update สถานะงาน',method:'Remote',max:3,
+         detail:'บันทึกและอัพเดทสถานะงานใน AppSheet ครบถ้วน เป็นปัจจุบัน',
+         rubric:[[0,'ไม่บันทึก/ไม่ใช้งาน'],[1,'บันทึกแต่ไม่ครบ ไม่ Update'],[2,'บันทึกครบ แต่ Update ช้า'],[3,'บันทึกครบ Update สม่ำเสมอ']]},
+        {id:'2_11',num:'2.11',desc:'AppSheet - สรุปสถานะงานประจำเดือนพร้อมลงนาม',method:'Remote',max:3,
+         detail:'ส่งสรุปสถานะงานประจำเดือน พร้อมลงนาม',
+         rubric:[[0,'ไม่ส่ง/ไม่ลงนาม'],[3,'ส่งครบตรงเวลา พร้อมลงนาม']]}
+      ]
+    },
+    {
+      id:'cat3', num:3, title:'การประชาสัมพันธ์',
+      type:'mix', max:15, color:'#9B6FF0',
+      items:[
+        {id:'3_1',num:'3.1',desc:'บอร์ดประชาสัมพันธ์ - ความครบถ้วน',method:'On-site',max:3,
+         rubric:[[0,'ไม่มีบอร์ด/ไม่มีเอกสาร'],[1,'เอกสาร 1-2 รายการ'],[2,'เอกสาร 3 รายการ ไม่เป็นปัจจุบัน'],[3,'ครบ 4 รายการ เป็นปัจจุบัน']]},
+        {id:'3_2',num:'3.2',desc:'บอร์ดประชาสัมพันธ์ - ความเรียบร้อย',method:'On-site',max:2,
+         rubric:[[0,'สกปรก เอกสารหมดอายุ/ขาด'],[1,'สภาพปานกลาง'],[2,'สะอาด เรียบร้อย เป็นปัจจุบัน']]},
+        {id:'3_3',num:'3.3',desc:'ส่งแผน PR ประจำเดือนพร้อมตัวอย่าง',method:'Remote',max:2,
+         rubric:[[0,'ไม่ส่ง/ส่งช้า'],[2,'ส่งครบตรงเวลา']]},
+        {id:'3_4',num:'3.4',desc:'คุณภาพประกาศ - ความถูกต้องเนื้อหา',method:'ผสม',max:3,
+         rubric:[[0,'มีคำผิดบ่อย'],[1,'คำผิด 2-3 จุด'],[2,'คำผิดเล็กน้อย 1 จุด'],[3,'ถูกต้อง 100%']]},
+        {id:'3_5',num:'3.5',desc:'การใช้ Template มาตรฐานบริษัทในประกาศ',method:'ผสม',max:2,
+         rubric:[[0,'ไม่ใช้ Template/ใช้ผิดมาตรฐาน'],[2,'ใช้ Template ถูกต้อง']]},
+        {id:'3_6',num:'3.6',desc:'การจัดเก็บสื่อ PR ย้อนหลัง',method:'Remote',max:1,
+         rubric:[[0,'ไม่จัดเก็บ/หาไม่เจอ'],[1,'จัดเก็บครบ ตรวจย้อนหลังได้']]},
+        {id:'3_7',num:'3.7',desc:'ช่องทาง Online ครบทุกช่องทางที่กำหนด',method:'Remote',max:2,
+         rubric:[[0,'ใช้ช่องทางเดียว'],[1,'ใช้ 2 ช่องทาง'],[2,'ครบทุกช่องทาง']]}
+      ]
+    },
+    {
+      id:'cat4', num:4, title:'การจัดการข้อร้องเรียน',
+      type:'mix', max:10, color:'#E8445A',
+      items:[
+        {id:'4_1',num:'4.1',desc:'ช่องทางรับเรื่องร้องเรียนชัดเจน',method:'ผสม',max:2,
+         rubric:[[0,'ไม่มีช่องทาง'],[1,'มี 1 ช่องทาง'],[2,'หลายช่องทาง ประชาสัมพันธ์ให้ลูกบ้านทราบ']]},
+        {id:'4_2',num:'4.2',desc:'แบบฟอร์มและระบบรับเรื่อง',method:'ผสม',max:2,
+         rubric:[[0,'ไม่มีแบบฟอร์ม/ไม่ใช้ระบบ'],[2,'มีแบบฟอร์มมาตรฐานหรือใช้ Urbanice']]},
+        {id:'4_3',num:'4.3',desc:'บันทึกข้อมูลร้องเรียนเป็นระบบ',method:'Remote',max:3,
+         rubric:[[0,'ไม่บันทึก'],[1,'บันทึกบางส่วน ข้อมูลไม่ครบ'],[2,'บันทึกครบทุกเรื่อง แต่ฟิลด์ไม่ครบ'],[3,'บันทึกครบทุกเรื่อง ครบทุกฟิลด์']]},
+        {id:'4_4',num:'4.4',desc:'ความเข้าใจ SLA และขั้นตอนการแก้ไข',method:'On-site',max:2,
+         rubric:[[0,'ไม่ทราบ/อธิบายไม่ได้'],[1,'อธิบายได้บางส่วน'],[2,'อธิบายได้ครบถ้วน']]},
+        {id:'4_5',num:'4.5',desc:'รายงานและติดตามผลร้องเรียน',method:'Remote',max:1,
+         rubric:[[0,'ไม่มีรายงาน/ไม่ติดตาม'],[1,'มีรายงานครบ พร้อมติดตาม']]}
+      ]
+    },
+    {
+      id:'cat5', num:5, title:'งานพัสดุและจัดซื้อ',
+      type:'onsite', max:10, color:'#F07820',
+      items:[
+        {id:'5_1',num:'5.1',desc:'Stock Sticker / Key Card ตรงตามทะเบียน',method:'On-site',max:3,
+         rubric:[[0,'ไม่ตรงเกิน 10 รายการ'],[1,'ไม่ตรง 5-10 รายการ'],[2,'ไม่ตรง 1-4 รายการ'],[3,'ตรงทุกรายการ 100%']]},
+        {id:'5_2',num:'5.2',desc:'สภาพการจัดเก็บวัสดุสำนักงาน',method:'On-site',max:2,
+         rubric:[[0,'ไม่เป็นระเบียบ'],[1,'เป็นระเบียบบางส่วน'],[2,'เป็นระเบียบ มีป้ายระบุครบ']]},
+        {id:'5_3',num:'5.3',desc:'ใบขอซื้อ/ใบสั่งซื้อ (PR/PO) ครบถ้วน',method:'On-site',max:2,
+         rubric:[[0,'ไม่จัดทำ/ไม่ครบ'],[1,'จัดทำแต่เอกสารไม่ครบ'],[2,'จัดทำครบตามรอบ']]},
+        {id:'5_4',num:'5.4',desc:'สรุปตารางคู่สัญญา (แม่บ้าน/รปภ./ลิฟต์/ประกัน)',method:'On-site',max:2,
+         rubric:[[0,'ไม่มีตาราง/ไม่แจ้งเตือน'],[2,'มีตารางครบ แจ้งเตือนตามรอบ']]},
+        {id:'5_5',num:'5.5',desc:'สรุปพัสดุค้างเกิน 7 วัน',method:'On-site',max:1,
+         rubric:[[0,'ไม่มีการสรุป/ติดตาม'],[1,'มีการสรุปและแจ้งเตือน']]}
+      ]
+    },
+    {
+      id:'cat6', num:6, title:'การให้บริการประจำวันและสภาพสำนักงาน',
+      type:'onsite', max:10, color:'#1A6FBF',
+      items:[
+        {id:'6_1',num:'6.1',desc:'การทักทาย รับเรื่อง และให้บริการลูกบ้าน',method:'On-site',max:2,
+         rubric:[[0,'ไม่ทักทาย/มารยาทไม่ดี'],[1,'ทักทายปกติ ให้บริการตามหน้าที่'],[2,'ทักทายดี ให้บริการเชิงรุก']]},
+        {id:'6_2',num:'6.2',desc:'ความรู้ในกฎระเบียบและการให้คำปรึกษา',method:'On-site',max:2,
+         rubric:[[0,'ไม่ทราบ/อธิบายผิด'],[1,'ทราบบางส่วน'],[2,'ทราบครบ อธิบายชัดเจน']]},
+        {id:'6_3',num:'6.3',desc:'สภาพ Lobby และสำนักงานนิติบุคคล',method:'On-site',max:2,
+         rubric:[[0,'สกปรก/ไม่เป็นระเบียบ'],[1,'สะอาดปานกลาง'],[2,'สะอาด เรียบร้อย']]},
+        {id:'6_4',num:'6.4',desc:'การควบคุมการเข้า-ออกผู้มาติดต่อ/ผู้รับเหมา',method:'On-site',max:2,
+         rubric:[[0,'ไม่บันทึก/บันทึกไม่ครบ'],[2,'บันทึกครบทุกราย']]},
+        {id:'6_5',num:'6.5',desc:'การให้บริการรับ-ส่งพัสดุ',method:'On-site',max:2,
+         rubric:[[0,'ไม่บันทึก/ไม่มีลายเซ็น'],[1,'บันทึกบางส่วน'],[2,'บันทึกครบ มีลายเซ็นผู้รับ']]}
+      ]
+    },
+    {
+      id:'cat7', num:7, title:'วินัย คุณภาพงาน และนโยบาย',
+      type:'onsite', max:10, color:'#E8445A',
+      items:[
+        {id:'7_1',num:'7.1',desc:'การแต่งกายตามมาตรฐานบริษัท',method:'On-site',max:2,critical:true,
+         rubric:[[0,'ไม่ถูกต้อง (→ Critical Fail)'],[2,'ถูกต้อง 100%']]},
+        {id:'7_2',num:'7.2',desc:'กิริยามารยาทและการวางตัว',method:'On-site',max:2,
+         rubric:[[0,'พฤติกรรมไม่เหมาะสม'],[1,'พฤติกรรมปกติ'],[2,'ดีเยี่ยม เป็นแบบอย่าง']]},
+        {id:'7_3',num:'7.3',desc:'การปฏิบัติตามนโยบายบริษัท',method:'On-site',max:2,
+         rubric:[[0,'ฝ่าฝืนนโยบาย'],[1,'ปฏิบัติบางส่วน'],[2,'ปฏิบัติครบถ้วน']]},
+        {id:'7_4',num:'7.4',desc:'ไม่มีป้าย/เอกสารบริษัทบริหารเดิมในพื้นที่',method:'On-site',max:2,critical:true,
+         rubric:[[0,'พบป้าย/เอกสารบริษัทเดิม (→ Critical Fail)'],[2,'ไม่พบเลย 100%']]},
+        {id:'7_5',num:'7.5',desc:'การให้ความร่วมมือกับสำนักงานใหญ่',method:'Remote',max:2,
+         rubric:[[0,'ไม่ตอบกลับ/ไม่ส่งข้อมูล'],[1,'ตอบกลับล่าช้า'],[2,'ตอบกลับและส่งข้อมูลตรงเวลา']]}
+      ]
+    }
+  ],
+  criticalItems:[
+    {id:'CR1',desc:'การแต่งกายถูกต้องตามมาตรฐานบริษัท (เครื่องแบบ+ป้ายชื่อ+ความสะอาด)'},
+    {id:'CR2',desc:'ไม่พบป้าย/เอกสาร/Sticker ของบริษัทบริหารเดิมในพื้นที่ทั้งหมด'},
+    {id:'CR3',desc:'ไม่พบเอกสารลับ/ข้อมูลส่วนบุคคลลูกบ้านวางเปิดเผยต่อบุคคลภายนอก'},
+    {id:'CR4',desc:'Sticker/Key Card ไม่มีหายโดยไม่มีบันทึก (ทราบจำนวนจริง)'},
+    {id:'CR5',desc:'ไม่มีการละเลยร้องเรียนเร่งด่วนเกิน SLA โดยไม่ดำเนินการ'}
+  ]
+};
+
+const SECTION_COLORS = {mix:'var(--accent)',remote:'var(--green)',onsite:'#F07820'};
+const SECTION_LABELS = {mix:'ผสม',remote:'Remote',onsite:'On-site'};
+
+// ═══════════════════════ AUTH CONFIG ═══════════════════════
+// *** แก้ไข User/Password ได้ที่นี่ ***
+const USERS = [
+  { username: 'admin',    password: 'MJP@Admin2569',  role: 'admin',   displayName: 'ผู้ดูแลระบบ' },
+  { username: 'pirawit',  password: 'Audit@2569',      role: 'admin',   displayName: 'พีรวิชญ์ ศรีสวัสดิ์' },
+  { username: 'auditor1', password: 'Audit1@2569',     role: 'auditor', displayName: 'ผู้ประเมิน 1' },
+  { username: 'auditor2', password: 'Audit2@2569',     role: 'auditor', displayName: 'ผู้ประเมิน 2' },
+  { username: 'auditor3', password: 'Audit3@2569',     role: 'auditor', displayName: 'ผู้ประเมิน 3' },
+];
+// *** สิ้นสุดส่วนแก้ไข User (role: 'admin' = ทุกอย่าง, 'auditor' = กรอกได้ ไม่มีตั้งค่า) ***
+
+const SESSION_KEY = 'mjp_session';
+let currentUser = null;
+
+function getSession() {
+  try { return JSON.parse(sessionStorage.getItem(SESSION_KEY)); }
+  catch { return null; }
+}
+function setSession(u) { sessionStorage.setItem(SESSION_KEY, JSON.stringify(u)); currentUser = u; }
+function clearSession() { sessionStorage.removeItem(SESSION_KEY); currentUser = null; }
+
+function doLogin() {
+  const u = document.getElementById('login-username').value.trim();
+  const p = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  const found = USERS.find(x => x.username === u && x.password === p);
+  if (!found) {
+    errEl.classList.add('show');
+    document.getElementById('login-password').value = '';
+    document.getElementById('login-password').focus();
+    return;
+  }
+  errEl.classList.remove('show');
+  setSession(found);
+  enterApp();
+}
+
+function enterViewer() {
+  currentUser = { username:'viewer', role:'viewer', displayName:'Viewer (ดูอย่างเดียว)' };
+  enterApp();
+}
+
+function doLogout() {
+  if (!confirm('ออกจากระบบใช่ไหม?')) return;
+  clearSession();
+  currentUser = null;
+  scores = {}; criticalScores = {};
+  document.getElementById('login-page').classList.remove('hidden');
+  document.getElementById('login-username').value = '';
+  document.getElementById('login-password').value = '';
+  document.getElementById('login-error').classList.remove('show');
+}
+
+function enterApp() {
+  document.getElementById('login-page').classList.add('hidden');
+  applyRoleUI();
+  showPage('dashboard');
+}
+
+function applyRoleUI() {
+  if (!currentUser) return;
+  const isViewer  = currentUser.role === 'viewer';
+  const isAuditor = currentUser.role === 'auditor';
+
+  // User pill
+  document.getElementById('user-name-label').textContent = currentUser.displayName;
+  document.getElementById('user-dot').className = 'user-dot ' + (isViewer ? 'dot-viewer' : 'dot-auditor');
+
+  // ซ่อน Tab ตามสิทธิ์
+  const tabForm  = document.getElementById('tab-form');
+  const tabSetup = document.getElementById('tab-setup');
+  if (tabForm)  tabForm.style.display  = isViewer ? 'none' : '';
+  if (tabSetup) tabSetup.style.display = (isViewer || isAuditor) ? 'none' : '';
+
+  // Viewer lock bar
+  const lockBar = document.getElementById('viewer-lock-bar');
+  if (lockBar) lockBar.style.display = isViewer ? 'flex' : 'none';
+
+  if (isViewer) {
+    lockFormForViewer();
+  } else {
+    // เติมชื่อ Auditor อัตโนมัติ
+    const auditorEl = document.getElementById('f-auditor');
+    if (auditorEl && !auditorEl.value) auditorEl.value = currentUser.displayName;
+  }
+}
+
+function lockFormForViewer() {
+  setTimeout(() => {
+    document.querySelectorAll('#page-form input, #page-form select, #page-form textarea').forEach(el => {
+      el.disabled = true;
+      el.style.opacity = '0.55';
+      el.style.cursor  = 'not-allowed';
+    });
+    document.querySelectorAll('#page-form button:not(.btn-logout)').forEach(el => {
+      el.disabled = true;
+      el.style.pointerEvents = 'none';
+      el.style.opacity = '0.4';
+    });
+    const submitArea = document.querySelector('.submit-area');
+    if (submitArea) submitArea.style.display = 'none';
+    const draftBanner = document.getElementById('draft-banner');
+    if (draftBanner) draftBanner.style.display = 'none';
+  }, 200);
+}
+
+// ═══════════════════════ STATE ═══════════════════════
+let scores = {};
+let criticalScores = {};
+let configUrl = localStorage.getItem('mjp_script_url') || '';
+
+// ═══════════════════════ BUILD FORM ═══════════════════════
+// ═══════════════════════ DRAFT ═══════════════════════
+const DRAFT_KEY = 'mjp_audit_draft';
+
+function saveDraft() {
+  const draft = {
+    savedAt: new Date().toISOString(),
+    property: document.getElementById('f-property').value,
+    period:   document.getElementById('f-period').value,
+    staff:    document.getElementById('f-staff').value,
+    position: document.getElementById('f-position').value,
+    auditor:  document.getElementById('f-auditor').value,
+    date:     document.getElementById('f-date').value,
+    scores:   {...scores},
+    criticalScores: {...criticalScores},
+    notes: {},
+    percentValues: {}
+  };
+  AUDIT_STRUCTURE.sections.forEach(sec =>
+    sec.items.forEach(item => {
+      const notesEl = document.getElementById('notes-'+item.id);
+      if (notesEl?.value) draft.notes[item.id] = notesEl.value;
+      // บันทึกค่า % สำหรับ percent input
+      if (item.inputType === 'percent') {
+        const pctEl = document.getElementById('pct-'+item.id);
+        if (pctEl?.value) draft.percentValues[item.id] = pctEl.value;
+      }
+    })
+  );
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  updateDraftBanner();
+  showToast('⏸ บันทึก Draft เรียบร้อย — กลับมากรอกต่อได้เลย','success');
+}
+
+function loadDraft() {
+  const raw = localStorage.getItem(DRAFT_KEY);
+  if (!raw) return;
+  try {
+    const d = JSON.parse(raw);
+    if (d.property) document.getElementById('f-property').value = d.property;
+    if (d.period)   document.getElementById('f-period').value   = d.period;
+    if (d.staff)    document.getElementById('f-staff').value    = d.staff;
+    if (d.position) document.getElementById('f-position').value = d.position;
+    if (d.auditor)  document.getElementById('f-auditor').value  = d.auditor;
+    if (d.date)     document.getElementById('f-date').value     = d.date;
+    // กู้คืน percent inputs ก่อน (จะ setScore ให้ด้วย)
+    if (d.percentValues) {
+      Object.entries(d.percentValues).forEach(([id, pct]) => {
+        const pctEl = document.getElementById('pct-'+id);
+        const item  = findItem(id);
+        if (pctEl && item) {
+          pctEl.value = pct;
+          calcPercentScore(id, pct, item.max);
+        }
+      });
+    }
+    // กู้คืนคะแนนอื่นๆ (ไม่ใช่ percent)
+    if (d.scores) {
+      Object.entries(d.scores).forEach(([id, val]) => {
+        const item = findItem(id);
+        if (item && item.inputType !== 'percent') setScore(id, val, item.max);
+      });
+    }
+    if (d.criticalScores) {
+      Object.entries(d.criticalScores).forEach(([id, val]) => setCritical(id, val));
+    }
+    if (d.notes) {
+      Object.entries(d.notes).forEach(([id, val]) => {
+        const el = document.getElementById('notes-'+id);
+        if (el) { el.value = val; autoResize(el); }
+      });
+    }
+    updateDraftBanner();
+  } catch(e) { console.error('loadDraft error:', e); }
+}
+
+function clearDraft() {
+  if (!confirm('ล้าง Draft ที่บันทึกไว้ใช่ไหม?')) return;
+  localStorage.removeItem(DRAFT_KEY);
+  updateDraftBanner();
+  showToast('ล้าง Draft เรียบร้อย','success');
+}
+
+function updateDraftBanner() {
+  const raw = localStorage.getItem(DRAFT_KEY);
+  const banner = document.getElementById('draft-banner');
+  const text   = document.getElementById('draft-text');
+  if (!banner) return;
+  if (!raw) { banner.classList.remove('show'); return; }
+  try {
+    const d = JSON.parse(raw);
+    const dt = new Date(d.savedAt);
+    const dtStr = dt.toLocaleString('th-TH',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+    const prop = d.property || '—';
+    const period = d.period || '—';
+    const scoreCount = Object.keys(d.scores||{}).length;
+    text.textContent = `Draft ค้างอยู่: ${prop} | ${period} | กรอกแล้ว ${scoreCount} ข้อ | บันทึกเมื่อ ${dtStr}`;
+    banner.classList.add('show');
+  } catch(e) { banner.classList.remove('show'); }
+}
+
+function buildForm() {
+  // Set default date — ใช้ local timezone เพื่อป้องกัน iPad timezone offset
+  const today = new Date();
+  const yyyy  = today.getFullYear();
+  const mm    = String(today.getMonth()+1).padStart(2,'0');
+  const dd    = String(today.getDate()).padStart(2,'0');
+  document.getElementById('f-date').value   = `${yyyy}-${mm}-${dd}`;
+  document.getElementById('f-period').value = `${yyyy}-${mm}`;
+
+  // Critical items
+  const cb = document.getElementById('critical-body');
+  AUDIT_STRUCTURE.criticalItems.forEach(ci => {
+    cb.innerHTML += `
+    <div class="ci-item" id="ci-wrap-${ci.id}">
+      <span class="ci-code">${ci.id}</span>
+      <span class="ci-desc">${ci.desc}</span>
+      <div class="ci-btns">
+        <button class="ci-btn" id="ci-pass-${ci.id}" onclick="setCritical('${ci.id}','pass')">ผ่าน</button>
+        <button class="ci-btn" id="ci-fail-${ci.id}" onclick="setCritical('${ci.id}','fail')">ไม่ผ่าน</button>
+      </div>
+    </div>`;
+  });
+
+  // Sections
+  const sw = document.getElementById('sections-wrap');
+  AUDIT_STRUCTURE.sections.forEach(sec => {
+    const sColor = SECTION_COLORS[sec.type];
+    const sLabel = SECTION_LABELS[sec.type];
+    let itemsHtml = '';
+    sec.items.forEach(item => {
+
+      // ── กรณีพิเศษ: inputType:'percent' ── กรอก % โดยตรง ระบบคำนวณคะแนนเอง
+      let scoreControlHtml = '';
+      if (item.inputType === 'percent') {
+        scoreControlHtml = `
+        <div class="score-row" style="flex-wrap:wrap;gap:8px">
+          <span class="score-label">เต็ม ${item.max} คะแนน</span>
+          <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:200px">
+            <input type="number" id="pct-${item.id}" min="0" max="100" placeholder="กรอก % จาก Urbanice..."
+              style="width:140px;padding:7px 10px;background:var(--navy3);border:1px solid var(--blue);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:14px;font-weight:600;outline:none"
+              oninput="calcPercentScore('${item.id}',this.value,${item.max})">
+            <span style="font-size:13px;color:var(--text3)">%</span>
+            <span id="pct-badge-${item.id}" style="font-size:12px;color:var(--text3);padding:3px 10px;background:var(--navy3);border:1px solid var(--border2);border-radius:6px;font-family:var(--mono)">— คะแนน</span>
+          </div>
+        </div>
+        <div id="pct-bar-wrap-${item.id}" style="margin-top:8px;display:none">
+          <div style="height:6px;background:var(--navy3);border-radius:3px;overflow:hidden">
+            <div id="pct-bar-${item.id}" style="height:100%;border-radius:3px;transition:.4s;width:0%"></div>
+          </div>
+          <div id="pct-label-${item.id}" style="font-size:11px;color:var(--text3);margin-top:4px"></div>
+        </div>`;
+      } else {
+        // ── ปกติ: ปุ่มเลือกคะแนน ──
+        let btnHtml = '';
+        item.rubric.forEach(([score, desc]) => {
+          btnHtml += `<button class="score-btn" id="btn-${item.id}-${score}" onclick="setScore('${item.id}',${JSON.stringify(score)},${item.max})">${score}</button>`;
+        });
+        scoreControlHtml = `
+        <div class="score-row">
+          <span class="score-label">เต็ม ${item.max} คะแนน</span>
+          <div class="score-btns">${btnHtml}</div>
+        </div>`;
+      }
+
+      let rubricHtml = item.rubric.map(([s,d]) =>
+        `<div class="rubric-row"><span class="rubric-score">${s}</span><span class="rubric-desc">${d}</span></div>`
+      ).join('');
+
+      itemsHtml += `
+      <div class="item" id="item-${item.id}">
+        <div class="item-head">
+          <span class="item-num">${item.num}</span>
+          <span class="item-desc">${item.desc}${item.critical?'<span class="item-critical">⚠ CRITICAL</span>':''}</span>
+        </div>
+        ${item.detail?`<div class="item-detail">${item.detail.replace(/\n/g,'<br>')}</div>`:''}
+        ${scoreControlHtml}
+        <div class="rubric-toggle" onclick="toggleRubric('${item.id}')">▸ ดูเกณฑ์คะแนน</div>
+        <div class="rubric-box" id="rubric-${item.id}">${rubricHtml}</div>
+        <textarea class="notes-input" id="notes-${item.id}" placeholder="หมายเหตุ/หลักฐาน (ถ้ามี)" rows="1" oninput="autoResize(this)"></textarea>
+      </div>`;
+    });
+
+    sw.innerHTML += `
+    <div class="section-card" id="sec-${sec.id}">
+      <div class="section-head" onclick="toggleSection('${sec.id}')">
+        <span class="section-num" style="background:${sColor}20;color:${sColor}">${sec.num}</span>
+        <span class="section-title">${sec.title}</span>
+        <span class="section-badge ${sec.type}">${sLabel}</span>
+        <span class="section-badge" style="background:var(--navy3);color:var(--text3)">เต็ม ${sec.max}</span>
+        <span class="section-chevron">▾</span>
+      </div>
+      <div class="section-body">${itemsHtml}</div>
+    </div>`;
+  });
+
+  document.getElementById('cfg-url').value = configUrl;
+}
+
+function toggleSection(id) {
+  const head = document.querySelector(`#sec-${id} .section-head`);
+  const body = document.querySelector(`#sec-${id} .section-body`);
+  head.classList.toggle('collapsed');
+  body.style.display = head.classList.contains('collapsed') ? 'none' : 'block';
+}
+
+function toggleRubric(id) {
+  const rb = document.getElementById('rubric-'+id);
+  rb.classList.toggle('open');
+}
+
+function autoResize(el) {
+  el.style.height='auto';
+  el.style.height=(el.scrollHeight)+'px';
+}
+
+// ═══════════════════════ SCORING ═══════════════════════
+// คำนวณคะแนนอัตโนมัติจาก % ที่กรอก (สำหรับข้อ inputType:'percent')
+function calcPercentScore(itemId, pctStr, max) {
+  const pct = parseFloat(pctStr);
+  const barWrap = document.getElementById('pct-bar-wrap-'+itemId);
+  const bar     = document.getElementById('pct-bar-'+itemId);
+  const badge   = document.getElementById('pct-badge-'+itemId);
+  const label   = document.getElementById('pct-label-'+itemId);
+
+  if (isNaN(pct) || pctStr === '') {
+    // รีเซ็ต
+    if (badge) badge.textContent = '— คะแนน';
+    if (barWrap) barWrap.style.display = 'none';
+    delete scores[itemId];
+    updateScoreBar();
+    return;
+  }
+
+  // คำนวณคะแนนจากเกณฑ์
+  let score, color, text;
+  if (pct >= 70)      { score=4; color='var(--green)';  text='ดีเยี่ยม (≥70%)'; }
+  else if (pct >= 50) { score=3; color='#8de0b5';       text='ดี (50–69%)'; }
+  else if (pct >= 30) { score=2; color='var(--accent)'; text='พื้นฐาน (30–49%)'; }
+  else if (pct >= 10) { score=1; color='var(--orange)'; text='ต้องเร่งชักชวน (10–29%)'; }
+  else                { score=0; color='var(--red)';    text='ต้องปรับปรุงเร่งด่วน (<10%)'; }
+
+  // อัปเดต UI
+  if (badge) {
+    badge.textContent = `${score}/${max} คะแนน`;
+    badge.style.color = color;
+    badge.style.borderColor = color;
+    badge.style.background = color+'22';
+  }
+  if (barWrap) {
+    barWrap.style.display = 'block';
+    bar.style.width = Math.min(pct,100)+'%';
+    bar.style.background = color;
+    label.textContent = `${pct.toFixed(1)}% → ${text}`;
+    label.style.color = color;
+  }
+
+  // บันทึกค่าและ % ลงใน notes อัตโนมัติ
+  setScore(itemId, score, max);
+  const notesEl = document.getElementById('notes-'+itemId);
+  if (notesEl && !notesEl.value) {
+    notesEl.value = `Download Rate: ${pct.toFixed(1)}%`;
+    autoResize(notesEl);
+  }
+}
+
+function setScore(itemId, score, max) {
+  scores[itemId] = score;
+  // Clear buttons for this item
+  const item = findItem(itemId);
+  item.rubric.forEach(([s]) => {
+    const btn = document.getElementById(`btn-${itemId}-${s}`);
+    if (!btn) return;
+    btn.className = 'score-btn';
+  });
+  // Set selected class
+  const btn = document.getElementById(`btn-${itemId}-${score}`);
+  if (btn) {
+    if (score === 'N/A') btn.className = 'score-btn selected-na';
+    else if (score === 0) btn.className = 'score-btn selected-0';
+    else if (score === max) btn.className = 'score-btn selected-full';
+    else btn.className = 'score-btn selected-mid';
+  }
+  updateScoreBar();
+}
+
+function setCritical(id, val) {
+  criticalScores[id] = val;
+  const passBtn = document.getElementById('ci-pass-'+id);
+  const failBtn = document.getElementById('ci-fail-'+id);
+  passBtn.className = val==='pass'?'ci-btn pass':'ci-btn';
+  failBtn.className = val==='fail'?'ci-btn fail':'ci-btn';
+  updateScoreBar();
+}
+
+function findItem(id) {
+  for (const sec of AUDIT_STRUCTURE.sections)
+    for (const item of sec.items)
+      if (item.id === id) return item;
+  return null;
+}
+
+function calcScores() {
+  let total = 0, effectiveMax = 0;
+  const catScores = {};
+  AUDIT_STRUCTURE.sections.forEach(sec => {
+    let catTotal = 0, catMax = 0;
+    sec.items.forEach(item => {
+      const s = scores[item.id];
+      if (s === 'N/A' || s === undefined) {
+        if (s !== 'N/A') {} // undefined = not yet scored
+        if (s === 'N/A') {} // skip from max
+        else catMax += item.max;
+      } else {
+        catTotal += Number(s);
+        catMax += item.max;
+      }
+    });
+    catScores[sec.id] = {score:catTotal,max:catMax};
+    total += catTotal;
+    effectiveMax += catMax;
+  });
+  // Critical pass check
+  const critFail = Object.values(criticalScores).some(v=>v==='fail');
+  const allCritSet = AUDIT_STRUCTURE.criticalItems.every(ci=>criticalScores[ci.id]);
+  return {total, effectiveMax, catScores, critFail, allCritSet};
+}
+
+function updateScoreBar() {
+  const {total, effectiveMax, critFail} = calcScores();
+  const pct = effectiveMax > 0 ? (total/effectiveMax*100) : 0;
+
+  document.getElementById('sb-score').textContent = total;
+  document.getElementById('sb-max').textContent = ` / ${effectiveMax} คะแนน`;
+  document.getElementById('sb-pct').textContent = Math.round(pct)+'%';
+
+  const bar = document.getElementById('sb-bar');
+  bar.style.width = pct+'%';
+
+  let grade, gradeColor;
+  if (critFail) {
+    grade = '⚠ Critical Fail'; gradeColor='var(--red)';
+    bar.style.background='var(--red)';
+  } else if (pct >= 90) {
+    grade='ดีเยี่ยม (Excellent)'; gradeColor='var(--green)';
+    bar.style.background='var(--green)';
+  } else if (pct >= 80) {
+    grade='ดี (Good)'; gradeColor='#8de0b5';
+    bar.style.background='#8de0b5';
+  } else if (pct >= 70) {
+    grade='พอใช้ - ผ่านเกณฑ์ (Pass)'; gradeColor='var(--accent)';
+    bar.style.background='var(--accent)';
+  } else {
+    grade='ต้องปรับปรุง (Need Improvement)'; gradeColor='var(--orange)';
+    bar.style.background='var(--orange)';
+  }
+  const gEl = document.getElementById('sb-grade');
+  gEl.innerHTML = `<span style="color:${gradeColor};font-size:13px">●</span> <span style="color:${gradeColor}">${grade}</span>`;
+  document.getElementById('sb-pct').style.color = gradeColor;
+}
+
+// ═══════════════════════ SUBMIT ═══════════════════════
+async function submitForm() {
+  const property  = document.getElementById('f-property').value;
+  const staff     = document.getElementById('f-staff').value;
+  const position  = document.getElementById('f-position').value;
+  const auditor   = document.getElementById('f-auditor').value;
+
+  // ── แปลง period ให้เป็น YYYY-MM เสมอ (รองรับ Safari ที่ส่งค่าเป็น Date string) ──
+  const rawPeriod  = document.getElementById('f-period').value;
+  const rawDate    = document.getElementById('f-date').value;
+  const period     = rawPeriod  ? rawPeriod.substring(0, 7)   : '';   // เอาแค่ YYYY-MM
+  const auditDate  = rawDate    ? rawDate.substring(0, 10)    : '';   // เอาแค่ YYYY-MM-DD
+
+  if (!property||!period||!staff||!auditor||!auditDate) {
+    showToast('กรุณากรอกข้อมูลทั่วไปให้ครบถ้วน','error'); return;
+  }
+  if (!AUDIT_STRUCTURE.criticalItems.every(ci=>criticalScores[ci.id])) {
+    showToast('กรุณาระบุผล Critical Items ทุกข้อก่อนบันทึก','error'); return;
+  }
+
+  const {total, effectiveMax, catScores, critFail} = calcScores();
+  const pct = effectiveMax > 0 ? Math.round(total/effectiveMax*100) : 0;
+  let grade = critFail?'Critical Fail':pct>=90?'ดีเยี่ยม':pct>=80?'ดี':pct>=70?'พอใช้':'ต้องปรับปรุง';
+
+  const payload = {
+    property, period, staff, position, auditor, auditDate,
+    totalScore: total, effectiveMax, percentage: pct, grade,
+    criticalPass: !critFail,
+    cat1: catScores.cat1?.score??0, cat2: catScores.cat2?.score??0,
+    cat3: catScores.cat3?.score??0, cat4: catScores.cat4?.score??0,
+    cat5: catScores.cat5?.score??0, cat6: catScores.cat6?.score??0,
+    cat7: catScores.cat7?.score??0,
+    criticalDetails: criticalScores,
+    scores: scores
+  };
+
+  const record = {...payload, timestamp: new Date().toISOString()};
+
+  // Save to local storage always (สำหรับแสดงผลทันที)
+  const stored = JSON.parse(localStorage.getItem('mjp_audits')||'[]');
+  stored.push(record);
+  localStorage.setItem('mjp_audits', JSON.stringify(stored));
+
+  // Send to Google Sheets if URL configured
+  let sentToSheet = false;
+  if (configUrl) {
+    document.getElementById('submit-text').style.display='none';
+    document.getElementById('submit-spin').classList.add('show');
+    document.getElementById('btn-submit').disabled=true;
+    try {
+      await fetch(configUrl, {
+        method:'POST', mode:'no-cors',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      sentToSheet = true;
+      showToast('✓ บันทึกสำเร็จ! ส่งข้อมูลไปยัง Google Sheets เรียบร้อย','success');
+    } catch(e) {
+      showToast('✓ บันทึกในเครื่องแล้ว (ไม่สามารถส่ง Sheets ได้)','error');
+    }
+    document.getElementById('submit-text').style.display='';
+    document.getElementById('submit-spin').classList.remove('show');
+    document.getElementById('btn-submit').disabled=false;
+  } else {
+    showToast('✓ บันทึกในเครื่องแล้ว (ยังไม่ได้ตั้งค่า Sheets URL)','success');
+  }
+
+  // ถ้ายังส่งขึ้น Sheet ไม่ได้ → เก็บ backup ไว้รออัปโหลดภายหลัง
+  if (!sentToSheet) {
+    const backup = JSON.parse(localStorage.getItem('mjp_local_backup')||'[]');
+    backup.push(record);
+    localStorage.setItem('mjp_local_backup', JSON.stringify(backup));
+  }
+
+  // ลบ Draft หลัง submit สำเร็จ
+  localStorage.removeItem(DRAFT_KEY);
+  updateDraftBanner();
+  // Switch to dashboard, sync จาก Sheet แล้วแสดงผล
+  setTimeout(async ()=>{
+    showPage('dashboard');
+    await syncFromSheet(false);
+    renderDash();
+  }, 1800);
+}
+
+// ═══════════════════════ DASHBOARD ═══════════════════════
+// อ่านข้อมูลจาก cache (ที่ sync มาจาก Google Sheet)
+function getAuditData() {
+  return JSON.parse(localStorage.getItem('mjp_audits')||'[]');
+}
+
+// ดึงข้อมูลล่าสุดจาก Google Sheet มาเก็บใน cache
+let isSyncing = false;
+async function syncFromSheet(showLoading) {
+  if (!configUrl) {
+    if (showLoading) showToast('ยังไม่ได้ตั้งค่า Google Sheet URL (ไปที่แท็บ ตั้งค่า)','error');
+    return false;
+  }
+  if (isSyncing) return false;
+  isSyncing = true;
+  if (showLoading) showToast('กำลังดึงข้อมูลจาก Google Sheet...','');
+
+  try {
+    const res = await fetch(configUrl + '?action=read&t=' + Date.now());
+    const json = await res.json();
+    if (json && Array.isArray(json.data)) {
+      // แปลงข้อมูลจาก Sheet ให้อยู่ในรูปแบบเดียวกับแอป
+      const records = json.data.map(r => ({
+        property: r.property, period: r.period, staff: r.staff,
+        position: r.position, auditor: r.auditor, auditDate: r.auditDate,
+        totalScore: Number(r.totalScore)||0,
+        effectiveMax: Number(r.effectiveMax)||100,
+        percentage: Number(r.percentage)||0,
+        grade: r.grade,
+        criticalPass: r.criticalPass===true || r.criticalPass==='true' || r.criticalPass==='TRUE',
+        cat1:Number(r.cat1)||0, cat2:Number(r.cat2)||0, cat3:Number(r.cat3)||0,
+        cat4:Number(r.cat4)||0, cat5:Number(r.cat5)||0, cat6:Number(r.cat6)||0,
+        cat7:Number(r.cat7)||0,
+        criticalDetails: (()=>{ try{return JSON.parse(r.criticalDetails)}catch{return{}} })(),
+        timestamp: r.timestamp
+      }));
+      // รวมข้อมูลจาก backup (ที่ยังไม่ได้อัปโหลดขึ้น Sheet) เข้าไปด้วย เพื่อไม่ให้หาย
+      const backup = JSON.parse(localStorage.getItem('mjp_local_backup')||'[]');
+      let merged = records;
+      if (backup.length > 0) {
+        // กรอง backup ที่ยังไม่มีใน Sheet (เทียบจาก property+period+staff)
+        const sheetKeys = new Set(records.map(r => r.property+'|'+r.period+'|'+r.staff));
+        const notUploaded = backup.filter(b => !sheetKeys.has(b.property+'|'+b.period+'|'+b.staff));
+        merged = records.concat(notUploaded);
+      }
+      localStorage.setItem('mjp_audits', JSON.stringify(merged));
+      isSyncing = false;
+      if (showLoading) showToast('✓ ดึงข้อมูลสำเร็จ '+records.length+' รายการ','success');
+      return true;
+    }
+  } catch(e) {
+    console.error('syncFromSheet error:', e);
+    if (showLoading) showToast('✗ ดึงข้อมูลไม่สำเร็จ: '+e.message,'error');
+  }
+  isSyncing = false;
+  return false;
+}
+
+async function manualSync() {
+  const ok = await syncFromSheet(true);
+  if (ok) { renderDash(); renderHistory(); }
+}
+
+function renderDash() {
+  let data = getAuditData();
+  if (!data.length) { renderEmptyDash(); return; }
+
+  const selMonth = document.getElementById('dash-month')?.value || 'all';
+  const selProp = document.getElementById('dash-prop')?.value || 'all';
+
+  // Populate filters
+  const months = [...new Set(data.map(d=>d.period))].sort().reverse();
+  const props = [...new Set(data.map(d=>d.property))].sort();
+  const mSel = document.getElementById('dash-month');
+  const pSel = document.getElementById('dash-prop');
+  mSel.innerHTML = '<option value="all">ทุกเดือน</option>' + months.map(m=>`<option value="${m}" ${m===selMonth?'selected':''}>${m}</option>`).join('');
+  pSel.innerHTML = '<option value="all">ทุกหน่วยงาน</option>' + props.map(p=>`<option value="${p}" ${p===selProp?'selected':''}>${p}</option>`).join('');
+
+  let filtered = data;
+  if (selMonth!=='all') filtered = filtered.filter(d=>d.period===selMonth);
+  if (selProp!=='all') filtered = filtered.filter(d=>d.property===selProp);
+
+  if (!filtered.length) { renderEmptyDash(); return; }
+
+  // KPIs
+  const avgPct = Math.round(filtered.reduce((a,d)=>a+d.percentage,0)/filtered.length);
+  const cfCount = filtered.filter(d=>!d.criticalPass).length;
+  const passCount = filtered.filter(d=>d.percentage>=70&&d.criticalPass).length;
+  document.getElementById('kpi-avg').textContent = avgPct+'%';
+  document.getElementById('kpi-avg-sub').textContent = `เฉลี่ยจาก ${filtered.length} ครั้ง`;
+  document.getElementById('kpi-count').textContent = filtered.length;
+  document.getElementById('kpi-pass').textContent = passCount;
+  document.getElementById('kpi-pass-sub').textContent = `จาก ${[...new Set(filtered.map(d=>d.property))].length} หน่วยงาน`;
+  document.getElementById('kpi-cf').textContent = cfCount;
+  document.getElementById('kpi-avg').style.color = avgPct>=70?'var(--green)':avgPct>=50?'var(--accent)':'var(--red)';
+
+  // Critical Fail Alert
+  const cfItems = filtered.filter(d=>!d.criticalPass);
+  const cfCard = document.getElementById('cf-alert-card');
+  if (cfItems.length) {
+    cfCard.style.display='';
+    document.getElementById('cf-list').innerHTML = cfItems.map(d=>`
+      <div class="cf-item">
+        <div class="cf-dot"></div>
+        <span class="cf-prop">${d.property}</span>
+        <span class="cf-detail">${d.staff} — ${d.grade}</span>
+        <span class="cf-date">${d.period}</span>
+      </div>`).join('');
+  } else cfCard.style.display='none';
+
+  // Bar chart - latest score per property
+  const latestByProp = {};
+  filtered.forEach(d=>{ if(!latestByProp[d.property]||d.period>latestByProp[d.property].period) latestByProp[d.property]=d; });
+  const barData = Object.values(latestByProp).sort((a,b)=>b.percentage-a.percentage);
+  const latestMonth = barData.length? barData[0].period : '';
+  document.getElementById('bar-month-label').textContent = latestMonth;
+  document.getElementById('bar-chart').innerHTML = barData.map(d=>{
+    const col = !d.criticalPass?'var(--red)':d.percentage>=90?'var(--green)':d.percentage>=70?'var(--accent)':'var(--orange)';
+    return `<div class="bc-row">
+      <span class="bc-label">${d.property}</span>
+      <div class="bc-track"><div class="bc-fill" style="width:${d.percentage}%;background:${col}">${d.percentage}%</div></div>
+      <span class="bc-val" style="color:${col}">${d.totalScore}/${d.effectiveMax}</span>
+    </div>`;
+  }).join('');
+
+  // Trend (monthly avg)
+  const byMonth = {};
+  data.forEach(d=>{ if(!byMonth[d.period]) byMonth[d.period]=[]; byMonth[d.period].push(d.percentage); });
+  const mKeys = Object.keys(byMonth).sort().slice(-6);
+  document.getElementById('trend-chart').innerHTML = `
+    <div style="display:flex;gap:12px;align-items:flex-end">
+      ${mKeys.map(m=>{
+        const avg = Math.round(byMonth[m].reduce((a,v)=>a+v,0)/byMonth[m].length);
+        const col = avg>=70?'var(--green)':avg>=50?'var(--accent)':'var(--red)';
+        return `<div style="flex:1;text-align:center">
+          <div style="font-size:11px;font-family:var(--mono);color:${col};font-weight:600;margin-bottom:4px">${avg}%</div>
+          <div style="height:${Math.max(8,avg*0.6)}px;background:${col};border-radius:3px 3px 0 0;opacity:.8"></div>
+          <div style="font-size:10px;color:var(--text3);margin-top:4px">${m.slice(5)}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  // Heatmap
+  const catNames = AUDIT_STRUCTURE.sections.map(s=>s.title.split('และ')[0].trim().substring(0,10));
+  const hmProps = [...new Set(filtered.map(d=>d.property))];
+  let hmHtml = '<thead><tr><th>หน่วยงาน</th>'+catNames.map(n=>`<th>${n}</th>`).join('')+'<th>รวม%</th></tr></thead><tbody>';
+  hmProps.forEach(prop=>{
+    const rec = filtered.filter(d=>d.property===prop).slice(-1)[0];
+    if(!rec) return;
+    const cats = ['cat1','cat2','cat3','cat4','cat5','cat6','cat7'];
+    const maxes = AUDIT_STRUCTURE.sections.map(s=>s.max);
+    hmHtml += `<tr><td style="font-family:var(--mono);font-size:11px;font-weight:600;color:var(--blue-light)">${prop}</td>`;
+    cats.forEach((c,i)=>{
+      const s = rec[c]??0; const m = maxes[i]; const p = m?Math.round(s/m*100):0;
+      const col = p>=90?'rgba(45,201,126,.25)':p>=70?'rgba(240,165,0,.2)':'rgba(232,68,90,.2)';
+      const tc = p>=90?'var(--green)':p>=70?'var(--accent)':'var(--red)';
+      hmHtml += `<td><span class="hm-cell" style="background:${col};color:${tc}">${p}%</span></td>`;
+    });
+    const gc = !rec.criticalPass?'var(--red)':rec.percentage>=70?'var(--green)':'var(--orange)';
+    hmHtml += `<td><span class="hm-cell" style="background:${!rec.criticalPass?'rgba(232,68,90,.2)':'rgba(45,201,126,.15)'};color:${gc}">${rec.percentage}%</span></td></tr>`;
+  });
+  hmHtml += '</tbody>';
+  document.getElementById('hm-table').innerHTML = hmHtml;
+
+  // Property grid
+  document.getElementById('prop-grid').innerHTML = barData.map(d=>{
+    const g = !d.criticalPass?'CF':d.percentage>=90?'EX':d.percentage>=80?'GD':d.percentage>=70?'OK':'NI';
+    const gl = !d.criticalPass?'Critical Fail':d.percentage>=90?'ดีเยี่ยม':d.percentage>=80?'ดี':d.percentage>=70?'พอใช้':'ต้องปรับปรุง';
+    const gClass = {CF:'grade-cf',EX:'grade-ex',GD:'grade-gd',OK:'grade-ok',NI:'grade-ni'}[g];
+    const col = !d.criticalPass?'var(--red)':d.percentage>=90?'var(--green)':d.percentage>=70?'var(--accent)':'var(--orange)';
+    return `<div class="prop-card ${g==='CF'?'critical-fail':''}" onclick="showPropDetail('${d.property}')">
+      <div class="prop-top">
+        <span class="prop-code">${d.property}</span>
+        <span class="prop-grade ${gClass}">${gl}</span>
+      </div>
+      <div class="prop-name">${d.staff}</div>
+      <div class="prop-mini-bar"><div class="prop-mini-fill" style="width:${d.percentage}%;background:${col}"></div></div>
+      <div class="prop-meta"><span>${d.totalScore}/${d.effectiveMax} คะแนน</span><span>${d.percentage}%</span></div>
+    </div>`;
+  }).join('');
+}
+
+function renderEmptyDash() {
+  ['kpi-avg','kpi-count','kpi-pass','kpi-cf'].forEach(id=>document.getElementById(id).textContent='—');
+  ['bar-chart','trend-chart','prop-grid'].forEach(id=>document.getElementById(id).innerHTML=
+    '<div style="text-align:center;padding:32px;color:var(--text3);font-size:13px">ยังไม่มีข้อมูล — กรอกแบบประเมินเพื่อดูผล</div>');
+  document.getElementById('hm-table').innerHTML='';
+}
+
+function showPropDetail(prop) {
+  const data = getAuditData().filter(d=>d.property===prop);
+  if (!data.length) return;
+  const latest = data.slice(-1)[0];
+  const cats = AUDIT_STRUCTURE.sections;
+  let html = `<div class="modal-section-title">ข้อมูลการประเมินล่าสุด</div>
+    <div class="modal-score-row"><span class="modal-score-name">พนักงาน</span><span class="modal-score-val">${latest.staff}</span></div>
+    <div class="modal-score-row"><span class="modal-score-name">รอบ</span><span class="modal-score-val" style="font-family:var(--mono)">${latest.period}</span></div>
+    <div class="modal-score-row"><span class="modal-score-name">ผู้ Audit</span><span class="modal-score-val">${latest.auditor}</span></div>
+    <div class="modal-section-title">คะแนนแยกหมวด</div>`;
+  cats.forEach(s=>{
+    const sc = latest[s.id]??0; const m = s.max;
+    const p = Math.round(sc/m*100);
+    const col = p>=70?'var(--green)':'var(--red)';
+    html += `<div class="modal-score-row">
+      <span class="modal-score-name" style="font-size:11px">${s.title.substring(0,28)}</span>
+      <span class="modal-score-val" style="color:${col}">${sc}/${m} (${p}%)</span>
+    </div>`;
+  });
+  const gc = !latest.criticalPass?'var(--red)':'var(--green)';
+  html += `<div class="modal-section-title">สรุปผล</div>
+    <div class="modal-score-row"><span class="modal-score-name">Critical Items</span><span class="modal-score-val" style="color:${gc}">${latest.criticalPass?'✓ ผ่าน':'✗ ไม่ผ่าน'}</span></div>
+    <div class="modal-score-row"><span class="modal-score-name">คะแนนรวม</span><span class="modal-score-val">${latest.totalScore}/${latest.effectiveMax} (${latest.percentage}%)</span></div>
+    <div class="modal-score-row"><span class="modal-score-name">ผลการประเมิน</span><span class="modal-score-val" style="color:${gc}">${latest.grade}</span></div>`;
+
+  if (data.length > 1) {
+    html += `<div class="modal-section-title">ประวัติ ${data.length} ครั้ง</div>`;
+    data.slice(-5).reverse().forEach(d=>{
+      const c = d.percentage>=70?'var(--green)':'var(--red)';
+      html += `<div class="modal-score-row">
+        <span class="modal-score-name" style="font-family:var(--mono)">${d.period}</span>
+        <span class="modal-score-val" style="color:${c}">${d.percentage}% — ${d.grade}</span>
+      </div>`;
+    });
+  }
+  document.getElementById('modal-title').textContent = `${prop} — รายละเอียด`;
+  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal(e) {
+  if (!e || e.target===document.getElementById('modal')) document.getElementById('modal').classList.remove('open');
+}
+
+// ═══════════════════════ SETUP ═══════════════════════
+function saveConfig() {
+  configUrl = document.getElementById('cfg-url').value.trim();
+  localStorage.setItem('mjp_script_url', configUrl);
+  showToast('✓ บันทึก URL เรียบร้อย','success');
+}
+
+function showDataCount() {
+  const data = getAuditData();
+  const el = document.getElementById('data-count');
+  if (el) el.textContent = data.length + ' รายการ';
+  showLocalCount();
+}
+
+function showLocalCount() {
+  const backup = JSON.parse(localStorage.getItem('mjp_local_backup')||'[]');
+  const audits = JSON.parse(localStorage.getItem('mjp_audits')||'[]');
+  const el = document.getElementById('local-count');
+  if (el) {
+    if (backup.length > 0) {
+      el.textContent = backup.length + ' รายการ (รออัปโหลด)';
+    } else if (audits.length > 0) {
+      el.textContent = audits.length + ' รายการในเครื่อง (กดเพื่ออัปโหลดได้)';
+    } else {
+      el.textContent = 'ไม่มีข้อมูลในเครื่อง';
+    }
+  }
+}
+
+// อัปโหลดข้อมูลเก่าที่ยังไม่เคยขึ้น Sheet
+async function uploadOldData() {
+  if (!configUrl) {
+    showToast('กรุณาตั้งค่าและบันทึก Google Sheet URL ก่อน','error');
+    return;
+  }
+  // อ่านจาก backup ก่อน ถ้าว่างให้ fallback ไปใช้ mjp_audits (ข้อมูลเก่าที่กรอกไว้)
+  let dataToUpload = JSON.parse(localStorage.getItem('mjp_local_backup')||'[]');
+  let usingFallback = false;
+  if (!dataToUpload.length) {
+    dataToUpload = JSON.parse(localStorage.getItem('mjp_audits')||'[]');
+    usingFallback = true;
+  }
+  if (!dataToUpload.length) {
+    showToast('ไม่มีข้อมูลในเครื่องที่จะอัปโหลด','error');
+    return;
+  }
+
+  const warnMsg = usingFallback
+    ? `พบข้อมูลในเครื่อง ${dataToUpload.length} รายการ\n\n⚠ ข้อมูลเหล่านี้อาจมีบางส่วนที่ขึ้น Sheet ไปแล้ว การอัปโหลดอาจทำให้เกิดข้อมูลซ้ำ\nหากไม่แน่ใจ แนะนำให้เปิด Google Sheet เช็คก่อน\n\nต้องการอัปโหลดทั้งหมดเลยไหม?`
+    : `อัปโหลดข้อมูลเก่า ${dataToUpload.length} รายการขึ้น Google Sheet?\n\n⚠ กดเพียงครั้งเดียว อย่ากดซ้ำเพื่อเลี่ยงข้อมูลซ้ำ`;
+  if (!confirm(warnMsg)) return;
+
+  document.getElementById('upload-old-text').style.display='none';
+  document.getElementById('upload-old-spin').classList.add('show');
+  document.getElementById('btn-upload-old').disabled = true;
+
+  let success = 0, failed = 0;
+  for (const rec of dataToUpload) {
+    try {
+      await fetch(configUrl, {
+        method:'POST', mode:'no-cors',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(rec)
+      });
+      success++;
+      await new Promise(r=>setTimeout(r, 400));
+    } catch(e) {
+      failed++;
+    }
+  }
+
+  // ล้าง backup เมื่ออัปโหลดเสร็จ
+  if (failed === 0) {
+    localStorage.removeItem('mjp_local_backup');
+  }
+
+  document.getElementById('upload-old-text').style.display='';
+  document.getElementById('upload-old-spin').classList.remove('show');
+  document.getElementById('btn-upload-old').disabled = false;
+
+  showLocalCount();
+  showToast(`✓ อัปโหลดสำเร็จ ${success} รายการ${failed?(' / ล้มเหลว '+failed):''}`, failed?'error':'success');
+
+  setTimeout(async ()=>{ await syncFromSheet(false); renderDash(); }, 1500);
+}
+
+function clearAllData() {
+  const data = getAuditData();
+  if (!data.length) { showToast('ไม่มีข้อมูลที่จะลบ','error'); return; }
+  const confirmed = confirm(`ยืนยันการลบข้อมูลทั้งหมด ${data.length} รายการ?\n\nการกระทำนี้ไม่สามารถย้อนกลับได้`);
+  if (!confirmed) return;
+  localStorage.removeItem('mjp_audits');
+  showDataCount();
+  showToast('✓ ลบข้อมูลทั้งหมดเรียบร้อย','success');
+  renderDash();
+}
+
+async function testConnection() {
+  const url = document.getElementById('cfg-url').value.trim();
+  if (!url) { showToast('กรุณาใส่ URL ก่อน','error'); return; }
+  showToast('กำลังทดสอบ...','');
+  try {
+    await fetch(url+'?test=1', {mode:'no-cors'});
+    showToast('✓ เชื่อมต่อได้ (no-cors mode)', 'success');
+  } catch(e) {
+    showToast('✗ ไม่สามารถเชื่อมต่อได้: '+e.message,'error');
+  }
+}
+
+function copyScript() {
+  const code = document.getElementById('script-code').textContent;
+  navigator.clipboard.writeText(code).then(()=>showToast('✓ Copy code สำเร็จ','success'));
+}
+
+// ═══════════════════════ UTILS ═══════════════════════
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  const tabs = {form:0,dashboard:1,history:2,setup:3};
+  document.querySelectorAll('.nav-tab')[tabs[id]]?.classList.add('active');
+  // ดึงข้อมูลล่าสุดจาก Google Sheet ก่อนแสดง Dashboard/History
+  if (id==='dashboard') {
+    renderDash();
+    syncFromSheet(false).then(ok => { if (ok) renderDash(); });
+  }
+  if (id==='history') {
+    renderHistory();
+    syncFromSheet(false).then(ok => { if (ok) renderHistory(); });
+  }
+}
+
+// ═══════════════════════ HISTORY ═══════════════════════
+const MONTH_TH = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const MONTH_FULL = ['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+
+function periodLabel(p) {
+  if (!p) return '';
+  const [y, m] = p.split('-');
+  const mNum = parseInt(m);
+  return `${MONTH_TH[mNum]} ${y}`;
+}
+function periodLabelFull(p) {
+  if (!p) return '';
+  const [y, m] = p.split('-');
+  return `${MONTH_FULL[parseInt(m)]} ${y}`;
+}
+
+function gradeClass(d) {
+  if (!d.criticalPass) return 'pg-cf';
+  if (d.percentage >= 90) return 'pg-ex';
+  if (d.percentage >= 80) return 'pg-gd';
+  if (d.percentage >= 70) return 'pg-ok';
+  return 'pg-ni';
+}
+function gradeClassUI(d) {
+  if (!d.criticalPass) return 'grade-cf';
+  if (d.percentage >= 90) return 'grade-ex';
+  if (d.percentage >= 80) return 'grade-gd';
+  if (d.percentage >= 70) return 'grade-ok';
+  return 'grade-ni';
+}
+function pctColor(p, pass) {
+  if (!pass) return 'var(--red)';
+  if (p >= 90) return 'var(--green)';
+  if (p >= 70) return 'var(--accent)';
+  return 'var(--orange)';
+}
+
+function renderHistory() {
+  const data = getAuditData();
+  if (!data.length) {
+    document.getElementById('hist-tbody').innerHTML = '<tr><td colspan="12" style="text-align:center;padding:32px;color:var(--text3)">ยังไม่มีข้อมูล</td></tr>';
+    return;
+  }
+
+  // build filter options
+  const years  = [...new Set(data.map(d=>d.period?.split('-')[0]))].sort().reverse();
+  const months = [...new Set(data.map(d=>d.period))].sort().reverse();
+  const props  = [...new Set(data.map(d=>d.property))].sort();
+
+  const selYear  = document.getElementById('hist-year').value || 'all';
+  const selMonth = document.getElementById('hist-month').value || 'all';
+  const selProp  = document.getElementById('hist-prop').value || 'all';
+
+  const yEl = document.getElementById('hist-year');
+  const mEl = document.getElementById('hist-month');
+  const pEl = document.getElementById('hist-prop');
+
+  yEl.innerHTML = '<option value="all">ทุกปี</option>' + years.map(y=>`<option value="${y}" ${y===selYear?'selected':''}>${y}</option>`).join('');
+  mEl.innerHTML = '<option value="all">ทุกเดือน</option>' + months.map(m=>`<option value="${m}" ${m===selMonth?'selected':''}>${periodLabel(m)}</option>`).join('');
+  pEl.innerHTML = '<option value="all">ทุกหน่วยงาน</option>' + props.map(p=>`<option value="${p}" ${p===selProp?'selected':''}>${p}</option>`).join('');
+
+  let filtered = [...data];
+  if (selYear !== 'all')  filtered = filtered.filter(d=>d.period?.startsWith(selYear));
+  if (selMonth !== 'all') filtered = filtered.filter(d=>d.period === selMonth);
+  if (selProp !== 'all')  filtered = filtered.filter(d=>d.property === selProp);
+  filtered.sort((a,b)=>b.period?.localeCompare(a.period)||a.property?.localeCompare(b.property));
+
+  // ─── Year summary ───
+  const wrap = document.getElementById('year-summary-wrap');
+  wrap.innerHTML = '';
+  if (selMonth === 'all') {
+    const byYear = {};
+    filtered.forEach(d=>{
+      const y = d.period?.split('-')[0];
+      if (!byYear[y]) byYear[y] = [];
+      byYear[y].push(d);
+    });
+    Object.keys(byYear).sort().reverse().forEach(y=>{
+      const yd = byYear[y];
+      const avgPct = Math.round(yd.reduce((a,d)=>a+d.percentage,0)/yd.length);
+      const passCount = yd.filter(d=>d.percentage>=70&&d.criticalPass).length;
+      const cfCount = yd.filter(d=>!d.criticalPass).length;
+      const months = [...new Set(yd.map(d=>d.period))].length;
+      const col = avgPct>=70?'var(--green)':avgPct>=50?'var(--accent)':'var(--red)';
+      wrap.innerHTML += `
+      <div class="summary-year">
+        <div class="summary-year-title">
+          <span>สรุปปี ${y} — ${yd.length} ครั้ง / ${months} เดือน</span>
+          <span style="font-size:12px;color:var(--text3);font-weight:400">เฉลี่ย <span style="color:${col};font-weight:700">${avgPct}%</span></span>
+        </div>
+        <div class="year-kpi-row">
+          <div class="year-kpi"><div class="year-kpi-val" style="color:${col}">${avgPct}%</div><div class="year-kpi-label">คะแนนเฉลี่ย</div></div>
+          <div class="year-kpi"><div class="year-kpi-val">${yd.length}</div><div class="year-kpi-label">ครั้งทั้งหมด</div></div>
+          <div class="year-kpi"><div class="year-kpi-val" style="color:var(--green)">${passCount}</div><div class="year-kpi-label">ผ่านเกณฑ์</div></div>
+          <div class="year-kpi"><div class="year-kpi-val" style="color:var(--red)">${cfCount}</div><div class="year-kpi-label">Critical Fail</div></div>
+        </div>
+      </div>`;
+    });
+  }
+
+  // ─── Table ───
+  const title = selMonth !== 'all' ? `รายการประเมิน — ${periodLabelFull(selMonth)}` :
+                selYear  !== 'all' ? `รายการประเมิน — ปี ${selYear}` :
+                `รายการประเมินทั้งหมด (${filtered.length} รายการ)`;
+  document.getElementById('hist-table-title').textContent = title;
+
+  document.getElementById('hist-tbody').innerHTML = filtered.map((d,i)=>{
+    const col = pctColor(d.percentage, d.criticalPass);
+    const gc  = gradeClassUI(d);
+    return `<tr>
+      <td style="color:var(--text3)">${i+1}</td>
+      <td style="font-family:var(--mono);font-size:11px">${periodLabel(d.period)}</td>
+      <td><span style="font-family:var(--mono);font-size:11px;font-weight:600;color:var(--blue-light)">${d.property}</span></td>
+      <td>${d.staff||'—'}</td>
+      <td style="font-size:11px;color:var(--text3)">${d.position||'—'}</td>
+      <td style="font-family:var(--mono)">${d.totalScore}/${d.effectiveMax}</td>
+      <td class="col-pct" style="color:${col}">${d.percentage}%</td>
+      <td><span class="col-grade ${gc}">${d.grade}</span></td>
+      <td style="font-weight:700;color:${d.criticalPass?'var(--green)':'var(--red)'}">${d.criticalPass?'✓ ผ่าน':'✗ ไม่ผ่าน'}</td>
+      <td style="font-size:11px">${d.auditor||'—'}</td>
+      <td style="font-family:var(--mono);font-size:11px">${d.auditDate||'—'}</td>
+      <td><button onclick='printSingle(${JSON.stringify(d)})' style="padding:3px 8px;background:var(--surface3);border:1px solid var(--border2);border-radius:5px;color:var(--text2);font-size:11px;cursor:pointer;font-family:var(--font)">พิมพ์</button></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--text3)">ไม่พบข้อมูล</td></tr>';
+}
+
+// ═══════════════════════ PRINT ═══════════════════════
+function buildPrintHTML(records, title, subtitle) {
+  const cats = [
+    {id:'cat1',name:'งานเอกสารและทะเบียนคุม',max:20},
+    {id:'cat2',name:'การใช้งาน Application',max:25},
+    {id:'cat3',name:'การประชาสัมพันธ์',max:15},
+    {id:'cat4',name:'การจัดการข้อร้องเรียน',max:10},
+    {id:'cat5',name:'งานพัสดุและจัดซื้อ',max:10},
+    {id:'cat6',name:'การให้บริการและสภาพสำนักงาน',max:10},
+    {id:'cat7',name:'วินัย คุณภาพงาน และนโยบาย',max:10},
+  ];
+
+  const avgPct  = records.length ? Math.round(records.reduce((a,d)=>a+d.percentage,0)/records.length) : 0;
+  const passCount = records.filter(d=>d.percentage>=70&&d.criticalPass).length;
+  const cfCount   = records.filter(d=>!d.criticalPass).length;
+  const period    = records[0]?.period || '';
+
+  let rows = records.map((d,i)=>{
+    const gc = gradeClass(d);
+    const catCols = cats.map(c=>{
+      const s = d[c.id]??0;
+      const p = Math.round(s/c.max*100);
+      const cc = p>=90?'pg-ex':p>=70?'pg-ok':'pg-ni';
+      return `<td><span class="print-grade ${cc}">${s}/${c.max}</span></td>`;
+    }).join('');
+    return `<tr>
+      <td>${i+1}</td>
+      <td><b>${d.property}</b></td>
+      <td>${d.staff||'—'}</td>
+      <td style="font-size:10px">${d.position||'—'}</td>
+      ${catCols}
+      <td><b>${d.totalScore}/${d.effectiveMax}</b></td>
+      <td><span class="print-grade ${gc}">${d.percentage}%</span></td>
+      <td class="${d.criticalPass?'critical-status-pass':'critical-status-fail'}">${d.criticalPass?'ผ่าน':'ไม่ผ่าน'}</td>
+    </tr>`;
+  }).join('');
+
+  return `
+  <div class="print-page">
+    <div class="print-header">
+      <div class="print-logo">บริษัท เมเจอร์ พร็อพเพอร์ตี้ เซอร์วิส จำกัด</div>
+      <div class="print-sub">รายงานสรุปผลการประเมินการปฏิบัติงานเจ้าหน้าที่ธุรการหน่วยงาน</div>
+      <div style="font-size:16px;font-weight:700;color:#1A6FBF;margin-top:6px">${title}</div>
+      <div style="font-size:12px;color:#666;margin-top:2px">${subtitle}</div>
+    </div>
+
+    <div class="print-summary-box">
+      <div class="print-kpi"><div class="print-kpi-val">${records.length}</div><div class="print-kpi-label">จำนวน Audit</div></div>
+      <div class="print-kpi"><div class="print-kpi-val">${avgPct}%</div><div class="print-kpi-label">คะแนนเฉลี่ย</div></div>
+      <div class="print-kpi"><div class="print-kpi-val" style="color:#155724">${passCount}</div><div class="print-kpi-label">ผ่านเกณฑ์ (≥70%)</div></div>
+      <div class="print-kpi"><div class="print-kpi-val" style="color:#721c24">${cfCount}</div><div class="print-kpi-label">Critical Fail</div></div>
+    </div>
+
+    <div class="print-section-title">ตารางสรุปผลรายหน่วยงาน</div>
+    <table class="print-table">
+      <thead>
+        <tr>
+          <th>#</th><th>หน่วยงาน</th><th>พนักงาน</th><th>ตำแหน่ง</th>
+          ${cats.map(c=>`<th>${c.name.substring(0,10)}</th>`).join('')}
+          <th>รวม</th><th>%</th><th>Critical</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+
+    <div class="print-section-title">เกณฑ์การประเมิน</div>
+    <table class="print-table" style="width:60%">
+      <tr><th>ระดับ</th><th>ช่วงคะแนน</th><th>คำอธิบาย</th></tr>
+      <tr><td><span class="print-grade pg-ex">ดีเยี่ยม</span></td><td>90–100%</td><td>ปฏิบัติงานดีเยี่ยม เป็นแบบอย่างได้</td></tr>
+      <tr><td><span class="print-grade pg-gd">ดี</span></td><td>80–89%</td><td>ปฏิบัติงานดีตามมาตรฐาน</td></tr>
+      <tr><td><span class="print-grade pg-ok">พอใช้</span></td><td>70–79%</td><td>ผ่านเกณฑ์ขั้นต่ำ ควรพัฒนา</td></tr>
+      <tr><td><span class="print-grade pg-ni">ต้องปรับปรุง</span></td><td>&lt;70%</td><td>ไม่ผ่านเกณฑ์ ต้องมีแผนพัฒนา</td></tr>
+      <tr><td><span class="print-grade pg-cf">Critical Fail</span></td><td>—</td><td>พบความผิดพลาดร้ายแรง ต้องแก้ไขทันที</td></tr>
+    </table>
+
+    <div class="print-sig">
+      <div class="print-sig-box">ผู้รับการประเมิน<br><br><br>(……………………………………)<br>ชื่อ-สกุล</div>
+      <div class="print-sig-box">ผู้ประเมิน<br><br><br>(……………………………………)<br>ชื่อ-สกุล</div>
+      <div class="print-sig-box">ผู้จัดการหน่วยงาน<br><br><br>(……………………………………)<br>ชื่อ-สกุล</div>
+      <div class="print-sig-box">ผู้จัดการฝ่ายปฏิบัติการ<br><br><br>(……………………………………)<br>ชื่อ-สกุล</div>
+    </div>
+    <div style="margin-top:12px;font-size:9px;color:#999;text-align:right">
+      พิมพ์เมื่อ: ${new Date().toLocaleString('th-TH')} | MJP Audit System Rev.02/2569
+    </div>
+  </div>`;
+}
+
+function buildSinglePrintHTML(d) {
+  const cats = [
+    {id:'cat1',name:'งานเอกสารและทะเบียนคุม',max:20},
+    {id:'cat2',name:'การใช้งาน Application',max:25},
+    {id:'cat3',name:'การประชาสัมพันธ์',max:15},
+    {id:'cat4',name:'การจัดการข้อร้องเรียน',max:10},
+    {id:'cat5',name:'งานพัสดุและจัดซื้อ',max:10},
+    {id:'cat6',name:'การให้บริการและสภาพสำนักงาน',max:10},
+    {id:'cat7',name:'วินัย คุณภาพงาน และนโยบาย',max:10},
+  ];
+  const gc = gradeClass(d);
+  const catRows = cats.map(c=>{
+    const s = d[c.id]??0;
+    const p = Math.round(s/c.max*100);
+    const cc = p>=90?'pg-ex':p>=70?'pg-ok':'pg-ni';
+    return `<tr>
+      <td>${c.name}</td>
+      <td style="text-align:center">${c.max}</td>
+      <td style="text-align:center">${s}</td>
+      <td style="text-align:center"><span class="print-grade ${cc}">${p}%</span></td>
+    </tr>`;
+  }).join('');
+
+  return `
+  <div class="print-page">
+    <div class="print-header">
+      <div class="print-logo">บริษัท เมเจอร์ พร็อพเพอร์ตี้ เซอร์วิส จำกัด</div>
+      <div class="print-sub">แบบประเมินการปฏิบัติงานเจ้าหน้าที่ธุรการหน่วยงาน — Rev.02/2569</div>
+    </div>
+
+    <div class="print-meta">
+      <div class="print-meta-item"><span class="print-meta-label">หน่วยงาน:</span><span class="print-meta-val">${d.property}</span></div>
+      <div class="print-meta-item"><span class="print-meta-label">รอบประเมิน:</span><span class="print-meta-val">${periodLabelFull(d.period)}</span></div>
+      <div class="print-meta-item"><span class="print-meta-label">ผู้รับการประเมิน:</span><span class="print-meta-val">${d.staff||'—'}</span></div>
+      <div class="print-meta-item"><span class="print-meta-label">ตำแหน่ง:</span><span class="print-meta-val">${d.position||'—'}</span></div>
+      <div class="print-meta-item"><span class="print-meta-label">ผู้ Audit:</span><span class="print-meta-val">${d.auditor||'—'}</span></div>
+      <div class="print-meta-item"><span class="print-meta-label">วันที่ Audit:</span><span class="print-meta-val">${d.auditDate||'—'}</span></div>
+    </div>
+
+    <div class="print-section-title">คะแนนแยกหมวด</div>
+    <table class="print-table" style="width:70%">
+      <thead><tr><th>หมวด</th><th style="text-align:center">เต็ม</th><th style="text-align:center">ได้</th><th style="text-align:center">%</th></tr></thead>
+      <tbody>${catRows}</tbody>
+      <tfoot>
+        <tr style="font-weight:700;background:#f0f4f8">
+          <td>รวมทั้งหมด</td>
+          <td style="text-align:center">${d.effectiveMax}</td>
+          <td style="text-align:center">${d.totalScore}</td>
+          <td style="text-align:center"><span class="print-grade ${gc}">${d.percentage}%</span></td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <div class="print-section-title">Critical Items</div>
+    <table class="print-table" style="width:70%">
+      <thead><tr><th>รหัส</th><th>รายการ</th><th style="text-align:center">ผล</th></tr></thead>
+      <tbody>
+        ${AUDIT_STRUCTURE.criticalItems.map(ci=>{
+          const r = d.criticalDetails?.[ci.id];
+          const cls = r==='pass'?'critical-status-pass':r==='fail'?'critical-status-fail':'';
+          const lbl = r==='pass'?'✓ ผ่าน':r==='fail'?'✗ ไม่ผ่าน':'—';
+          return `<tr><td>${ci.id}</td><td style="font-size:10px">${ci.desc}</td><td style="text-align:center" class="${cls}">${lbl}</td></tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+
+    <div class="print-summary-box" style="margin-top:16px">
+      <div class="print-kpi"><div class="print-kpi-val">${d.totalScore}/${d.effectiveMax}</div><div class="print-kpi-label">คะแนนรวม</div></div>
+      <div class="print-kpi"><div class="print-kpi-val">${d.percentage}%</div><div class="print-kpi-label">คิดเป็น %</div></div>
+      <div class="print-kpi"><div class="print-kpi-val ${d.criticalPass?'':'critical-status-fail'}">${d.criticalPass?'ผ่าน':'ไม่ผ่าน'}</div><div class="print-kpi-label">Critical Items</div></div>
+      <div class="print-kpi"><div class="print-kpi-val"><span class="print-grade ${gc}">${d.grade}</span></div><div class="print-kpi-label">ผลการประเมิน</div></div>
+    </div>
+
+    <div class="print-sig">
+      <div class="print-sig-box">ผู้รับการประเมิน<br><br><br>(……………………………………)<br>${d.staff||'ชื่อ-สกุล'}</div>
+      <div class="print-sig-box">ผู้ประเมิน<br><br><br>(……………………………………)<br>${d.auditor||'ชื่อ-สกุล'}</div>
+      <div class="print-sig-box">ผู้จัดการหน่วยงาน<br><br><br>(……………………………………)<br>ชื่อ-สกุล</div>
+      <div class="print-sig-box">ผู้จัดการฝ่ายปฏิบัติการ<br><br><br>(……………………………………)<br>ชื่อ-สกุล</div>
+    </div>
+    <div style="margin-top:10px;font-size:9px;color:#999;text-align:right">
+      พิมพ์เมื่อ: ${new Date().toLocaleString('th-TH')} | MJP Audit System Rev.02/2569
+    </div>
+  </div>`;
+}
+
+function printReport() {
+  const data = getAuditData();
+  const selYear  = document.getElementById('hist-year')?.value  || 'all';
+  const selMonth = document.getElementById('hist-month')?.value || 'all';
+  const selProp  = document.getElementById('hist-prop')?.value  || 'all';
+
+  let filtered = [...data];
+  if (selYear  !== 'all') filtered = filtered.filter(d=>d.period?.startsWith(selYear));
+  if (selMonth !== 'all') filtered = filtered.filter(d=>d.period===selMonth);
+  if (selProp  !== 'all') filtered = filtered.filter(d=>d.property===selProp);
+  filtered.sort((a,b)=>b.period?.localeCompare(a.period)||a.property?.localeCompare(b.property));
+
+  if (!filtered.length) { showToast('ไม่มีข้อมูลที่จะพิมพ์','error'); return; }
+
+  const title = selMonth !== 'all' ? `รายงานประจำ${periodLabelFull(selMonth)}` :
+                selYear  !== 'all' ? `รายงานประจำปี ${selYear}` :
+                'รายงานสรุปทั้งหมด';
+  const subtitle = `จำนวน ${filtered.length} หน่วยงาน | พิมพ์โดย Admin | ${new Date().toLocaleDateString('th-TH')}`;
+
+  document.getElementById('print-area').innerHTML = buildPrintHTML(filtered, title, subtitle);
+  window.print();
+}
+
+function printSingle(d) {
+  document.getElementById('print-area').innerHTML = buildSinglePrintHTML(d);
+  window.print();
+}
+
+// ═══════════════════════ EXPORT CSV ═══════════════════════
+function exportCSV() {
+  const data = getAuditData();
+  const selYear  = document.getElementById('hist-year')?.value  || 'all';
+  const selMonth = document.getElementById('hist-month')?.value || 'all';
+  const selProp  = document.getElementById('hist-prop')?.value  || 'all';
+
+  let filtered = [...data];
+  if (selYear  !== 'all') filtered = filtered.filter(d=>d.period?.startsWith(selYear));
+  if (selMonth !== 'all') filtered = filtered.filter(d=>d.period===selMonth);
+  if (selProp  !== 'all') filtered = filtered.filter(d=>d.property===selProp);
+
+  if (!filtered.length) { showToast('ไม่มีข้อมูลที่จะ Export','error'); return; }
+
+  const headers = ['รอบ','หน่วยงาน','พนักงาน','ตำแหน่ง','ผู้ Audit','วันที่',
+    'หมวด1','หมวด2','หมวด3','หมวด4','หมวด5','หมวด6','หมวด7',
+    'คะแนนรวม','คะแนนเต็ม','%','ผลประเมิน','Critical Items'];
+  const rows = filtered.map(d=>[
+    periodLabelFull(d.period), d.property, d.staff||'', d.position||'', d.auditor||'', d.auditDate||'',
+    d.cat1,d.cat2,d.cat3,d.cat4,d.cat5,d.cat6,d.cat7,
+    d.totalScore, d.effectiveMax, d.percentage+'%', d.grade,
+    d.criticalPass?'ผ่าน':'ไม่ผ่าน'
+  ]);
+
+  const csv = '\uFEFF' + [headers, ...rows].map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const fname = selMonth !== 'all' ? `MJP_Audit_${selMonth}.csv` :
+                selYear  !== 'all' ? `MJP_Audit_${selYear}.csv` : 'MJP_Audit_All.csv';
+  a.href = url; a.download = fname; a.click();
+  URL.revokeObjectURL(url);
+  showToast('✓ Export CSV สำเร็จ','success');
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show '+(type||'');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ═══════════════════════ INIT ═══════════════════════
+buildForm();
+loadDraft();
+showDataCount();
+
+// ─── ตรวจสอบ Session เมื่อเปิดแอป ───
+(function initAuth() {
+  const saved = getSession();
+  if (saved) {
+    // มี session อยู่ (ยังไม่ได้ปิด browser)
+    currentUser = saved;
+    document.getElementById('login-page').classList.add('hidden');
+    applyRoleUI();
+    showPage('dashboard');
+  } else {
+    // ยังไม่ได้ login — แสดง login page
+    document.getElementById('login-page').classList.remove('hidden');
+    // ซ่อน main app ไว้ก่อน
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    setTimeout(() => document.getElementById('login-username').focus(), 100);
+  }
+})();
+// ไม่มี Mock Data — เริ่มต้นด้วยข้อมูลว่างเปล่า
+</script>
+</body>
+</html>
