@@ -152,6 +152,19 @@ select.field-input option{background:var(--navy2);color:var(--text)}
 .notes-input{width:100%;background:var(--navy3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font);font-size:12px;padding:8px 10px;resize:none;outline:none;min-height:40px;margin-top:8px}
 .notes-input:focus{border-color:var(--blue)}
 
+/* ─── กล่องบันทึกผลตรวจ 4 ช่อง ─── */
+.find-toggle{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--accent);cursor:pointer;margin-top:8px;padding:4px 10px;border:1px dashed rgba(240,165,0,.4);border-radius:6px;background:rgba(240,165,0,.05);font-weight:600}
+.find-toggle:hover{background:rgba(240,165,0,.12)}
+.find-toggle.filled{border-style:solid;background:rgba(240,165,0,.15)}
+.find-box{display:none;margin-top:8px;background:var(--navy3);border:1px solid rgba(240,165,0,.3);border-radius:8px;padding:10px}
+.find-box.open{display:block}
+.find-field{margin-bottom:8px}
+.find-field:last-child{margin-bottom:0}
+.find-label{font-size:10px;font-weight:700;color:var(--accent);letter-spacing:.4px;margin-bottom:3px;display:block}
+.find-input{width:100%;background:var(--navy);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:var(--font);font-size:12px;padding:7px 9px;resize:none;outline:none;min-height:34px}
+.find-input:focus{border-color:var(--accent)}
+.find-date{width:auto;min-width:150px;min-height:auto;padding:6px 9px;font-family:var(--mono)}
+
 /* critical section */
 .critical-card{background:rgba(232,68,90,0.06);border:1px solid rgba(232,68,90,0.25);border-radius:var(--r);margin-bottom:16px;overflow:hidden}
 .critical-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid rgba(232,68,90,0.15)}
@@ -490,6 +503,8 @@ select.field-input option{background:var(--navy2);color:var(--text)}
         <option value="OZP">OZP — โอโซน คอนโดเทล กะตะบีช ⭐</option>
         <option value="NTB">NTB — นันทวัน บางนา กม.7</option>
         <option value="BSR">BSR — บ้านกลางเมือง เอสเซ้นส์ พระราม 9 - ลาดพร้าว</option>
+        <option value="TAA">TAA — ดิ แอดเดรส อโศก 🆕</option>
+        <option value="RGH15">RGH15 — รีเจ้นท์ โฮม 15 แจ้งวัฒนะ 🆕</option>
         </optgroup>
         <optgroup label="── หมู่บ้านจัดสรร ──">
         <option value="SRJ">SRJ — สราญสิริ ราชพฤกษ์ - แจ้งวัฒนะ</option>
@@ -500,6 +515,7 @@ select.field-input option{background:var(--navy2);color:var(--text)}
         <option value="ALS">ALS — อลิสา พลูวิลล่า ภูเก็ต ⭐</option>
         <option value="RGB">RGB — รีเจน โฮม บางนา</option>
         <option value="RGW">RGW — รีเจน โฮม วุฒากาศ</option>
+        <option value="PSR">PSR — ภัสสร 4 รังสิต-คลอง 3 🆕</option>
         </optgroup>
       </select>
     </div>
@@ -658,14 +674,8 @@ select.field-input option{background:var(--navy2);color:var(--text)}
     <div id="trend-chart"></div>
   </div>
 
-  <!-- Heatmap -->
-  <div class="chart-card">
-    <div class="chart-title">คะแนนแยกหมวด × หน่วยงาน <span>เดือนล่าสุด</span></div>
-    <div class="heatmap"><table class="hm-table" id="hm-table"></table></div>
-  </div>
-
   <!-- Property grid -->
-  <div class="chart-title" style="margin-bottom:12px">รายละเอียดทุกหน่วยงาน</div>
+  <div class="chart-title" style="margin-bottom:12px">รายละเอียดทุกหน่วยงาน <span style="font-size:11px;color:var(--text3);font-weight:400">คลิกการ์ดเพื่อดูคะแนนรายข้อ</span></div>
   <div class="prop-grid" id="prop-grid"></div>
 
 </div>
@@ -790,8 +800,26 @@ const HEADERS = [
   'auditor','auditDate','totalScore','effectiveMax','percentage',
   'grade','criticalPass',
   'cat1','cat2','cat3','cat4','cat5','cat6','cat7',
-  'criticalDetails','notes'
+  'criticalDetails','notes',
+  'itemScores','itemComments','itemFindings','downloadRate'
 ];
+
+// ตรวจและเติมหัวคอลัมน์ให้ครบเสมอ (รองรับ Sheet เดิมที่มีข้อมูลอยู่แล้ว)
+function ensureHeaders(sheet) {
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(HEADERS);
+    return;
+  }
+  const width = Math.max(sheet.getLastColumn(), HEADERS.length);
+  const current = sheet.getRange(1, 1, 1, width).getValues()[0];
+  let needFix = false;
+  for (let i = 0; i < HEADERS.length; i++) {
+    if (String(current[i] || '').trim() !== HEADERS[i]) { needFix = true; break; }
+  }
+  if (needFix) {
+    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+  }
+}
 
 // บันทึกข้อมูล (เรียกตอนกด Submit ในแอป)
 function doPost(e) {
@@ -800,9 +828,7 @@ function doPost(e) {
     const ss = SpreadsheetApp.openById(SHEET_ID);
     let sheet = ss.getSheetByName(SHEET_NAME) || ss.insertSheet(SHEET_NAME);
 
-    if (sheet.getLastRow() === 0) {
-      sheet.appendRow(HEADERS);
-    }
+    ensureHeaders(sheet);
 
     sheet.appendRow([
       new Date().toISOString(),
@@ -813,7 +839,11 @@ function doPost(e) {
       data.cat1, data.cat2, data.cat3, data.cat4,
       data.cat5, data.cat6, data.cat7,
       JSON.stringify(data.criticalDetails || {}),
-      data.notes || ''
+      data.notes || '',
+      data.itemScores || '',
+      data.itemComments || '',
+      data.itemFindings || '',
+      data.downloadRate || ''
     ]);
 
     return ContentService
@@ -917,48 +947,45 @@ const AUDIT_STRUCTURE = {
     },
     {
       id:'cat2', num:2, title:'การใช้งาน Application และระบบงาน',
-      type:'remote', max:27, color:'#2DC97E',
+      type:'remote', max:25, color:'#2DC97E',
       items:[
-        {id:'2_1',num:'2.1',desc:'Urbanice — อัตราการดาวน์โหลดของลูกบ้าน (Download Rate %)',method:'Remote',max:4,
+        {id:'2_1',num:'2.1',desc:'Urbanice — อัตราการดาวน์โหลดของลูกบ้าน (Download Rate %)',method:'Remote',max:3,
          inputType:'percent',
          detail:'ดู % Active Users จาก Urbanice Dashboard แล้วกรอกตัวเลขในช่อง "กรอก %" ด้านล่างโดยตรง\nระบบจะคำนวณคะแนนให้อัตโนมัติตามเกณฑ์\n★ เป้าหมายหลัก: เจ้าหน้าที่ต้องเชิญชวนลูกบ้านดาวน์โหลดให้มากที่สุดทุกเดือน',
-         rubric:[[0,'น้อยกว่า 10% — ไม่มีการชักชวนหรือไม่ใช้งาน Urbanice'],[1,'10–29% — เริ่มต้น ต้องเร่งชักชวน'],[2,'30–49% — อยู่ในเกณฑ์พื้นฐาน มีการชักชวนบ้าง'],[3,'50–69% — ดี มีการชักชวนสม่ำเสมอ'],[4,'70% ขึ้นไป — ดีเยี่ยม ลูกบ้านส่วนใหญ่ใช้งานแล้ว']]},
-        {id:'2_2',num:'2.2',desc:'Urbanice — การจัดการงานแจ้งซ่อมตาม SLA',method:'Remote',max:4,
+         rubric:[[0,'น้อยกว่า 15% — ไม่มีการชักชวนหรือไม่ใช้งาน Urbanice'],[1,'15–39% — เริ่มต้น ต้องเร่งชักชวน'],[2,'40–64% — อยู่ในเกณฑ์ดี มีการชักชวนสม่ำเสมอ'],[3,'65% ขึ้นไป — ดีเยี่ยม ลูกบ้านส่วนใหญ่ใช้งานแล้ว']]},
+        {id:'2_2',num:'2.2',desc:'Urbanice — การจัดการงานแจ้งซ่อมตาม SLA',method:'Remote',max:3,
          detail:'SLA ที่บริษัทกำหนด:\n• งานเร่งด่วน (ไฟฟ้า/น้ำ/ลิฟต์): ตอบรับภายใน 2 ชม. / แก้ไขภายใน 24 ชม.\n• งานทั่วไป: ตอบรับภายใน 24 ชม. / แก้ไขภายใน 7 วัน\n• งานจ้างภายนอก: ตอบรับภายใน 24 ชม. / แก้ไขภายใน 30 วัน\nวิธีตรวจ: ดูสถิติงานแจ้งซ่อมใน Urbanice — จำนวนงานค้าง / เกิน SLA / ปิดงานแล้ว',
-         rubric:[[0,'ไม่ใช้ Urbanice รับแจ้งซ่อมเลย หรือ มีงานค้างเกิน SLA เกิน 50% ของเดือน'],[1,'มีงานค้างเกิน SLA 30–50% หรือ ไม่มีการอัปเดตสถานะงาน'],[2,'มีงานค้างเกิน SLA น้อยกว่า 30% มีการอัปเดตสถานะบ้าง'],[3,'งานค้างเกิน SLA น้อยกว่า 10% ตอบรับและอัปเดตสม่ำเสมอ'],[4,'ไม่มีงานค้างเกิน SLA เลย ปิดงานครบ มีการแจ้งผลกลับลูกบ้านทุกเรื่อง']]},
-        {id:'2_3',num:'2.3',desc:'Urbanice — การประชาสัมพันธ์ตามแผน PR ประจำเดือน',method:'Remote',max:3,
+         rubric:[[0,'ไม่ใช้ Urbanice รับแจ้งซ่อม หรือมีงานค้างเกิน SLA มากกว่า 50%'],[1,'มีงานค้างเกิน SLA 30–50% หรือไม่อัปเดตสถานะงาน'],[2,'มีงานค้างเกิน SLA น้อยกว่า 30% อัปเดตสถานะสม่ำเสมอ'],[3,'ไม่มีงานค้างเกิน SLA ปิดงานครบ แจ้งผลกลับลูกบ้านทุกเรื่อง']]},
+        {id:'2_3',num:'2.3',desc:'Urbanice — การประชาสัมพันธ์ตามแผน PR ประจำเดือน',method:'Remote',max:2,
          detail:'ตรวจสอบการโพสต์ประชาสัมพันธ์ผ่าน Urbanice เทียบกับแผน PR ที่ส่งสำนักงานใหญ่ก่อนต้นเดือน\nวิธีตรวจ: เปิด Urbanice → ดู Feed/ประกาศ → นับจำนวนโพสต์เทียบกับแผน\n★ ต้องมีแผน PR ส่งสำนักงานใหญ่ก่อนเป็นเงื่อนไขขั้นต้น',
-         rubric:[[0,'ไม่ส่งแผน PR หรือไม่มีการโพสต์ใดใน Urbanice เดือนนั้น'],[1,'ส่งแผน PR แต่โพสต์จริงน้อยกว่า 50% ของแผน'],[2,'ส่งแผน PR และโพสต์จริง 50–89% ของแผน ตรงเวลา'],[3,'ส่งแผน PR ก่อนต้นเดือน และโพสต์จริงครบ 90–100% ตรงเวลา']]},
-        {id:'2_4',num:'2.4',desc:'Urbanice — การตั้งค่าพื้นที่ส่วนกลางและระเบียบการใช้งาน',method:'Remote',max:3,na:true,
+         rubric:[[0,'ไม่ส่งแผน PR หรือไม่มีการโพสต์ใดใน Urbanice เดือนนั้น'],[1,'ส่งแผน PR แต่โพสต์จริงน้อยกว่า 80% ของแผน'],[2,'ส่งแผน PR ก่อนต้นเดือน และโพสต์จริงครบ 80–100% ตรงเวลา']]},
+        {id:'2_4',num:'2.4',desc:'Urbanice — การตั้งค่าพื้นที่ส่วนกลางและระเบียบการใช้งาน',method:'Remote',max:2,na:true,
          detail:'ตรวจสอบว่ามีการ Set รายละเอียดพื้นที่ส่วนกลางใน Urbanice ครบถ้วน เช่น ชื่อพื้นที่ / เวลาเปิด-ปิด / จำนวนคนสูงสุด / ระเบียบการใช้งาน\n★ เลือก N/A ถ้าหน่วยงานไม่มีพื้นที่ส่วนกลางที่ต้องจอง',
-         rubric:[['N/A','หน่วยงานไม่มีพื้นที่ส่วนกลางที่ต้องจอง หรือไม่ใช้ Urbanice'],[0,'ไม่มีการตั้งค่าพื้นที่ส่วนกลางใน Urbanice เลย'],[1,'มีการตั้งค่าแต่ข้อมูลไม่ครบ (ขาดเวลา/ระเบียบ/จำนวนคน)'],[2,'มีการตั้งค่าครบ แต่ระเบียบการใช้งานไม่ชัดเจน'],[3,'ตั้งค่าครบถ้วน ระเบียบชัดเจน ลูกบ้านจองได้ทันที']],},
+         rubric:[['N/A','หน่วยงานไม่มีพื้นที่ส่วนกลางที่ต้องจอง หรือไม่ใช้ Urbanice'],[0,'ไม่มีการตั้งค่าพื้นที่ส่วนกลางใน Urbanice เลย'],[1,'มีการตั้งค่าแต่ข้อมูลไม่ครบ (ขาดเวลา/ระเบียบ/จำนวนคน)'],[2,'ตั้งค่าครบถ้วน ระเบียบชัดเจน ลูกบ้านจองได้ทันที']]},
         {id:'2_5',num:'2.5',desc:'Urbanice — การยืนยันและตอบกลับคำขอจองพื้นที่ส่วนกลาง',method:'Remote',max:2,na:true,
          detail:'ตรวจสอบสถิติการยืนยัน/ปฏิเสธคำขอจองพื้นที่ส่วนกลางใน Urbanice ว่าตอบกลับตาม SLA ภายใน 24 ชั่วโมง\n★ เลือก N/A ถ้าหน่วยงานไม่มีพื้นที่ส่วนกลางที่ต้องจอง',
-         rubric:[['N/A','หน่วยงานไม่มีพื้นที่ส่วนกลางที่ต้องจอง หรือไม่ใช้ Urbanice'],[0,'ไม่มีการตอบกลับ หรือมีคำขอค้างไม่ได้รับการยืนยันนานเกิน 3 วัน'],[1,'ตอบกลับช้า เกิน 24 ชม. แต่ไม่เกิน 3 วัน'],[2,'ตอบกลับทุกคำขอภายใน 24 ชม. ครบถ้วน']],},
+         rubric:[['N/A','หน่วยงานไม่มีพื้นที่ส่วนกลางที่ต้องจอง หรือไม่ใช้ Urbanice'],[0,'ไม่มีการตอบกลับ หรือมีคำขอค้างไม่ได้รับการยืนยันนานเกิน 3 วัน'],[1,'ตอบกลับช้า เกิน 24 ชม. แต่ไม่เกิน 3 วัน'],[2,'ตอบกลับทุกคำขอภายใน 24 ชม. ครบถ้วน']]},
         {id:'2_6',num:'2.6',desc:'มีช่องทางสื่อสาร Online กับลูกบ้าน',method:'Remote',max:2,na:true,
          detail:'หน่วยงานมี Line OA / Line Group / Facebook / Urbanice ฯลฯ อย่างน้อย 1 ช่อง\n★ หากไม่มีช่องทาง Online เลย เลือก N/A → ระบบจะปรับฐานคะแนนอัตโนมัติ',
          rubric:[['N/A','ไม่มีช่องทาง Online ใดๆ (ปรับฐานคะแนน)'],[0,'มีแต่ไม่ใช้งานในเดือนนั้น'],[2,'มีช่องทางและมีการใช้งานในเดือนนั้น']]},
-        {id:'2_7',num:'2.7',desc:'ความสม่ำเสมอในการโพสต์ตามแผน PR',method:'Remote',max:3,na:true,
+        {id:'2_7',num:'2.7',desc:'ความสม่ำเสมอในการโพสต์ตามแผน PR',method:'Remote',max:2,na:true,
          detail:'นับโพสต์จริงเทียบกับแผน PR ที่ส่งไว้ (ไม่นับการตอบแชท)',
-         rubric:[['N/A','ไม่มีช่องทาง Online ใดๆ'],[0,'ไม่โพสต์เลย/ไม่มีแผน PR'],[1,'โพสต์ตามแผนน้อยกว่า 50%'],[2,'โพสต์ตามแผน 50-89%'],[3,'โพสต์ครบตามแผน 90-100%']]},
+         rubric:[['N/A','ไม่มีช่องทาง Online ใดๆ'],[0,'ไม่โพสต์เลย/ไม่มีแผน PR'],[1,'โพสต์ตามแผนน้อยกว่า 80%'],[2,'โพสต์ครบตามแผน 80-100%']]},
         {id:'2_8',num:'2.8',desc:'คุณภาพเนื้อหาประกาศ Online (ขั้นพื้นฐาน)',method:'Remote',max:1,na:true,
          detail:'ตรวจสุ่ม 3-5 ประกาศ: ไม่มีคำผิด + มี Logo/ชื่อหน่วยงาน + ระบุวันที่',
          rubric:[['N/A','ไม่มีช่องทาง Online ใดๆ'],[0,'ผ่านเกณฑ์ไม่ครบ 3 ข้อ'],[1,'ผ่านครบ 3 ข้อ (คำถูก+Logo/ชื่อ+วันที่)']]},
-        {id:'2_7',num:'2.7',desc:'Operation Document - โครงสร้างโฟลเดอร์',method:'Remote',max:2,
-         detail:'โครงสร้าง Google Drive ถูกต้องตามที่บริษัทกำหนด',
-         rubric:[[0,'ไม่มีโครงสร้าง/ไม่จัดเก็บ'],[1,'มีโครงสร้างแต่ไม่ตรงมาตรฐาน'],[2,'ถูกต้อง 100%']]},
-        {id:'2_8',num:'2.8',desc:'Operation Document - ความเป็นปัจจุบัน',method:'Remote',max:2,
+        {id:'2_9',num:'2.9',desc:'Operation Document - ความเป็นปัจจุบัน',method:'Remote',max:2,
          detail:'ไฟล์เอกสารเป็นปัจจุบัน Upload ตรงเวลา ไม่มีไฟล์ค้าง',
-         rubric:[[0,'ไม่เป็นปัจจุบันเกิน 2 เดือน'],[1,'เป็นปัจจุบันบางส่วน มีไฟล์ค้าง'],[2,'เป็นปัจจุบันทั้งหมด']]},
-        {id:'2_9',num:'2.9',desc:'Operation Document - การตั้งสิทธิ์ไฟล์',method:'Remote',max:2,
-         detail:'ตั้งสิทธิ์เหมาะสม ไม่เปิดสาธารณะ',
-         rubric:[[0,'เปิดสาธารณะ/ตั้งสิทธิ์ผิดพลาด'],[2,'ถูกต้องตามนโยบาย']]},
-        {id:'2_10',num:'2.10',desc:'AppSheet - บันทึกข้อมูลและ Update สถานะงาน',method:'Remote',max:3,
-         detail:'บันทึกและอัพเดทสถานะงานใน AppSheet ครบถ้วน เป็นปัจจุบัน',
-         rubric:[[0,'ไม่บันทึก/ไม่ใช้งาน'],[1,'บันทึกแต่ไม่ครบ ไม่ Update'],[2,'บันทึกครบ แต่ Update ช้า'],[3,'บันทึกครบ Update สม่ำเสมอ']]},
-        {id:'2_11',num:'2.11',desc:'AppSheet - สรุปสถานะงานประจำเดือนพร้อมลงนาม',method:'Remote',max:3,
-         detail:'ส่งสรุปสถานะงานประจำเดือน พร้อมลงนาม',
-         rubric:[[0,'ไม่ส่ง/ไม่ลงนาม'],[3,'ส่งครบตรงเวลา พร้อมลงนาม']]}
+         rubric:[[0,'ไม่เป็นปัจจุบันเกิน 2 เดือน'],[1,'เป็นปัจจุบันบางส่วน มีไฟล์ค้าง'],[2,'เป็นปัจจุบันทั้งหมด ไม่มีไฟล์ค้าง']]},
+        {id:'2_10',num:'2.10',desc:'ทะเบียนทรัพย์สินเป็นปัจจุบัน',method:'ผสม',max:2,
+         detail:'ตรวจทะเบียนทรัพย์สินของนิติบุคคล (ครุภัณฑ์ อุปกรณ์ เครื่องมือ ทรัพย์สินส่วนกลาง)\nต้องมีครบ: รหัส/ชื่อทรัพย์สิน • จำนวน • ที่ตั้ง • สภาพ • วันที่ได้มา\nวิธีตรวจ: เทียบทะเบียนกับทรัพย์สินจริงในพื้นที่ และตรวจการปรับปรุงเมื่อมีการเพิ่ม/จำหน่ายทรัพย์สิน',
+         rubric:[[0,'ไม่มีทะเบียนทรัพย์สิน หรือมีแต่ไม่เคยปรับปรุง'],[1,'มีทะเบียนแต่ข้อมูลไม่ครบ หรือไม่ตรงกับทรัพย์สินจริง'],[2,'ทะเบียนครบถ้วน เป็นปัจจุบัน ตรงกับทรัพย์สินจริง 100%']]},
+        {id:'2_11',num:'2.11',desc:'Operation Document - บันทึกและติดตามมติที่ประชุม',method:'Remote',max:2,
+         detail:'ตรวจไฟล์ติดตามมติที่ประชุมใน Google Drive (Operation Document)\nต้องมีครบ: วาระ/มติ • ผู้รับผิดชอบ • กำหนดแล้วเสร็จ • สถานะปัจจุบัน\nวิธีตรวจ: เปิดไฟล์ติดตามมติ เทียบกับรายงานการประชุมล่าสุด',
+         rubric:[[0,'ไม่มีไฟล์ติดตามมติ/ไม่บันทึกเลย'],[1,'บันทึกไม่ครบทุกมติ หรือไม่ระบุผู้รับผิดชอบ/กำหนดเสร็จ หรืออัปเดตล่าช้า'],[2,'บันทึกครบทุกมติ ระบุผู้รับผิดชอบและกำหนดเสร็จ อัปเดตสถานะเป็นปัจจุบัน']]},
+        {id:'2_12',num:'2.12',desc:'Operation Document - สรุปความคืบหน้ามติที่ประชุมประจำเดือนพร้อมลงนาม',method:'Remote',max:2,
+         detail:'ส่งสรุปความคืบหน้าการดำเนินการตามมติที่ประชุมประจำเดือน พร้อมลงนาม ภายในกำหนด',
+         rubric:[[0,'ไม่ส่ง/ไม่ลงนาม'],[1,'ส่งล่าช้า หรือข้อมูลไม่ครบทุกมติ หรือไม่ลงนาม'],[2,'ส่งครบตรงเวลา ครบทุกมติ พร้อมลงนาม']]}
       ]
     },
     {
@@ -1063,10 +1090,10 @@ const SECTION_LABELS = {mix:'ผสม',remote:'Remote',onsite:'On-site'};
 // *** แก้ไข User/Password ได้ที่นี่ ***
 const USERS = [
   { username: 'admin',    password: 'MJP@Admin2569',  role: 'admin',   displayName: 'ผู้ดูแลระบบ' },
-  { username: 'pirawit',  password: 'MJ.Audit@2026',      role: 'admin',   displayName: 'พีรวิชญ์ ศรีสวัสดิ์' },
-  { username: 'supawat', password: 'MJ.Audit1@2026',     role: 'auditor', displayName: 'ศุภวัฒน์ อุ่นเจริญ' },
-  { username: 'sathaphon', password: 'MJ.Audit2@2026',     role: 'auditor', displayName: 'สถาพร ตนะทิพย์' },
-  { username: 'rinrapat', password: 'MJ.Audit3@2026',     role: 'auditor', displayName: 'รินทร์รภัสร์ หวังตรงจิตร' },
+  { username: 'pirawit',  password: 'Audit@2569',      role: 'admin',   displayName: 'พีรวิชญ์ ศรีสวัสดิ์' },
+  { username: 'auditor1', password: 'Audit1@2569',     role: 'auditor', displayName: 'ผู้ประเมิน 1' },
+  { username: 'auditor2', password: 'Audit2@2569',     role: 'auditor', displayName: 'ผู้ประเมิน 2' },
+  { username: 'auditor3', password: 'Audit3@2569',     role: 'auditor', displayName: 'ผู้ประเมิน 3' },
 ];
 // *** สิ้นสุดส่วนแก้ไข User (role: 'admin' = ทุกอย่าง, 'auditor' = กรอกได้ ไม่มีตั้งค่า) ***
 
@@ -1176,7 +1203,7 @@ let propType = 'condo';       // 'condo' | 'village'
 let urbaniceOff = false;      // true = ไม่ใช้ Urbanice
 
 // รหัสหน่วยงานที่เป็นหมู่บ้านจัดสรร
-const VILLAGE_CODES = ['SRJ','PLX','TRR','CKH','BUL','ALS','RGB','RGW'];
+const VILLAGE_CODES = ['SRJ','PLX','TRR','CKH','BUL','ALS','RGB','RGW','PSR'];
 
 // ข้อที่เกี่ยวกับ Urbanice (ซ่อนถ้าไม่ใช้ Urbanice)
 const URBANICE_ITEMS = ['2_1','2_2','2_3','2_4','2_5'];
@@ -1245,6 +1272,40 @@ function autoDetectPropType(code) {
   if (radioEl) { radioEl.checked = true; setPropType(isVillage ? 'village' : 'condo'); }
 }
 
+// ═══════════════════════ FINDINGS (บันทึกผลตรวจ 4 ช่อง) ═══════════════════════
+function toggleFindings(id) {
+  const box = document.getElementById('find-box-'+id);
+  if (box) box.classList.toggle('open');
+}
+
+// ทำเครื่องหมายว่าข้อนี้มีการกรอกผลตรวจแล้ว
+function markFindings(id) {
+  const f = getItemFinding(id);
+  const tg = document.getElementById('find-toggle-'+id);
+  if (!tg) return;
+  const has = f && (f.problem || f.action || f.due || f.support);
+  tg.classList.toggle('filled', !!has);
+  tg.textContent = has ? '📋 บันทึกผลตรวจแล้ว ✓' : '📋 บันทึกผลตรวจ / สั่งการแก้ไข';
+}
+
+function getItemFinding(id) {
+  const g = k => (document.getElementById('fd-'+k+'-'+id)?.value || '').trim();
+  const f = { problem:g('problem'), action:g('action'), due:g('due'), support:g('support') };
+  return (f.problem || f.action || f.due || f.support) ? f : null;
+}
+
+// รวบรวมผลตรวจทุกข้อที่มีการกรอก
+function collectFindings() {
+  const out = {};
+  AUDIT_STRUCTURE.sections.forEach(sec =>
+    sec.items.forEach(item => {
+      const f = getItemFinding(item.id);
+      if (f) out[item.id] = f;
+    })
+  );
+  return out;
+}
+
 // ═══════════════════════ DRAFT ═══════════════════════
 const DRAFT_KEY = 'mjp_audit_draft';
 
@@ -1260,7 +1321,10 @@ function saveDraft() {
     scores:   {...scores},
     criticalScores: {...criticalScores},
     notes: {},
-    percentValues: {}
+    percentValues: {},
+    findings: collectFindings(),
+    propType: propType,
+    urbaniceOff: urbaniceOff
   };
   AUDIT_STRUCTURE.sections.forEach(sec =>
     sec.items.forEach(item => {
@@ -1315,6 +1379,28 @@ function loadDraft() {
         const el = document.getElementById('notes-'+id);
         if (el) { el.value = val; autoResize(el); }
       });
+    }
+    // กู้คืนผลตรวจ 4 ช่อง
+    if (d.findings) {
+      Object.entries(d.findings).forEach(([id, f]) => {
+        ['problem','action','due','support'].forEach(k => {
+          const el = document.getElementById('fd-'+k+'-'+id);
+          if (el && f[k]) { el.value = f[k]; if (el.tagName==='TEXTAREA') autoResize(el); }
+        });
+        markFindings(id);
+      });
+    }
+    // กู้คืนประเภทหน่วยงาน / Urbanice
+    if (d.propType === 'village') {
+      const r = document.getElementById('pt-village');
+      if (r) { r.checked = true; propType = 'village'; }
+    }
+    if (d.urbaniceOff) {
+      const cb = document.getElementById('no-urbanice');
+      if (cb) { cb.checked = true; urbaniceOff = true;
+        const badge = document.getElementById('urbanice-off-badge');
+        if (badge) badge.style.display = 'flex';
+      }
     }
     updateDraftBanner();
   } catch(e) { console.error('loadDraft error:', e); }
@@ -1424,6 +1510,25 @@ function buildForm() {
         <div class="rubric-toggle" onclick="toggleRubric('${item.id}')">▸ ดูเกณฑ์คะแนน</div>
         <div class="rubric-box" id="rubric-${item.id}">${rubricHtml}</div>
         <textarea class="notes-input" id="notes-${item.id}" placeholder="หมายเหตุ/หลักฐาน (ถ้ามี)" rows="1" oninput="autoResize(this)"></textarea>
+        <div class="find-toggle" id="find-toggle-${item.id}" onclick="toggleFindings('${item.id}')">📋 บันทึกผลตรวจ / สั่งการแก้ไข</div>
+        <div class="find-box" id="find-box-${item.id}">
+          <div class="find-field">
+            <label class="find-label">1. ปัญหาที่พบ</label>
+            <textarea class="find-input" id="fd-problem-${item.id}" placeholder="ระบุปัญหาที่ตรวจพบ..." rows="1" oninput="autoResize(this);markFindings('${item.id}')"></textarea>
+          </div>
+          <div class="find-field">
+            <label class="find-label">2. สิ่งที่กำหนดให้หน่วยงานแก้ไข</label>
+            <textarea class="find-input" id="fd-action-${item.id}" placeholder="ระบุสิ่งที่ต้องแก้ไข..." rows="1" oninput="autoResize(this);markFindings('${item.id}')"></textarea>
+          </div>
+          <div class="find-field">
+            <label class="find-label">3. กำหนดแล้วเสร็จ</label>
+            <input type="date" class="find-input find-date" id="fd-due-${item.id}" onchange="markFindings('${item.id}')">
+          </div>
+          <div class="find-field">
+            <label class="find-label">4. สิ่งที่ผู้ตรวจเข้าช่วยเหลือ / แนะนำ</label>
+            <textarea class="find-input" id="fd-support-${item.id}" placeholder="ระบุการช่วยเหลือหรือคำแนะนำ..." rows="1" oninput="autoResize(this);markFindings('${item.id}')"></textarea>
+          </div>
+        </div>
       </div>`;
     });
 
@@ -1480,11 +1585,10 @@ function calcPercentScore(itemId, pctStr, max) {
 
   // คำนวณคะแนนจากเกณฑ์
   let score, color, text;
-  if (pct >= 70)      { score=4; color='var(--green)';  text='ดีเยี่ยม (≥70%)'; }
-  else if (pct >= 50) { score=3; color='#8de0b5';       text='ดี (50–69%)'; }
-  else if (pct >= 30) { score=2; color='var(--accent)'; text='พื้นฐาน (30–49%)'; }
-  else if (pct >= 10) { score=1; color='var(--orange)'; text='ต้องเร่งชักชวน (10–29%)'; }
-  else                { score=0; color='var(--red)';    text='ต้องปรับปรุงเร่งด่วน (<10%)'; }
+  if (pct >= 65)      { score=3; color='var(--green)';  text='ดีเยี่ยม (≥65%)'; }
+  else if (pct >= 40) { score=2; color='var(--accent)'; text='ดี (40–64%)'; }
+  else if (pct >= 15) { score=1; color='var(--orange)'; text='ต้องเร่งชักชวน (15–39%)'; }
+  else                { score=0; color='var(--red)';    text='ต้องปรับปรุงเร่งด่วน (<15%)'; }
 
   // อัปเดต UI
   if (badge) {
@@ -1629,6 +1733,19 @@ async function submitForm() {
   const pct = effectiveMax > 0 ? Math.round(total/effectiveMax*100) : 0;
   let grade = critFail?'Critical Fail':pct>=90?'ดีเยี่ยม':pct>=80?'ดี':pct>=70?'พอใช้':'ต้องปรับปรุง';
 
+  // รวบรวม comment รายข้อ + Download Rate %
+  const itemComments = {};
+  let downloadRate = '';
+  AUDIT_STRUCTURE.sections.forEach(sec =>
+    sec.items.forEach(item => {
+      const noteEl = document.getElementById('notes-'+item.id);
+      if (noteEl && noteEl.value.trim()) itemComments[item.id] = noteEl.value.trim();
+    })
+  );
+  // ดึง % download rate จากข้อ 2.1
+  const pctEl = document.getElementById('pct-2_1');
+  if (pctEl && pctEl.value) downloadRate = pctEl.value;
+
   const payload = {
     property, period, staff, position, auditor, auditDate,
     totalScore: total, effectiveMax, percentage: pct, grade,
@@ -1638,10 +1755,20 @@ async function submitForm() {
     cat5: catScores.cat5?.score??0, cat6: catScores.cat6?.score??0,
     cat7: catScores.cat7?.score??0,
     criticalDetails: criticalScores,
-    scores: scores
+    scores: scores,
+    itemScores: JSON.stringify(scores),
+    itemComments: JSON.stringify(itemComments),
+    itemFindings: JSON.stringify(collectFindings()),
+    downloadRate: downloadRate
   };
 
-  const record = {...payload, timestamp: new Date().toISOString()};
+  // record ที่เก็บในเครื่อง — เก็บเป็น object เพื่อให้ Dashboard อ่านได้ทันที
+  const record = {
+    ...payload,
+    itemComments: itemComments,
+    itemFindings: collectFindings(),
+    timestamp: new Date().toISOString()
+  };
 
   // Save to local storage always (สำหรับแสดงผลทันที)
   const stored = JSON.parse(localStorage.getItem('mjp_audits')||'[]');
@@ -1660,10 +1787,29 @@ async function submitForm() {
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify(payload)
       });
-      sentToSheet = true;
-      showToast('✓ บันทึกสำเร็จ! ส่งข้อมูลไปยัง Google Sheets เรียบร้อย','success');
+      // ── ตรวจสอบจริงว่าข้อมูลเข้า Sheet แล้วหรือยัง (no-cors มองไม่เห็นผล) ──
+      await new Promise(r=>setTimeout(r, 1200));
+      let verified = false;
+      try {
+        const res  = await fetch(configUrl + '?action=read&t=' + Date.now());
+        const json = await res.json();
+        if (json && Array.isArray(json.data)) {
+          verified = json.data.some(r =>
+            String(r.property) === property &&
+            String(r.period).substring(0,7) === period &&
+            String(r.staff).trim() === staff.trim()
+          );
+        }
+      } catch(err) { /* อ่านกลับไม่ได้ ถือว่ายืนยันไม่ได้ */ }
+
+      if (verified) {
+        sentToSheet = true;
+        showToast('✓ บันทึกลง Google Sheet สำเร็จ (ยืนยันแล้ว)','success');
+      } else {
+        showToast('⚠ ส่งแล้วแต่ยังไม่พบใน Sheet — เก็บไว้ในเครื่อง กด "อัปโหลดข้อมูลเก่า" ในหน้าตั้งค่าเพื่อส่งซ้ำ','error');
+      }
     } catch(e) {
-      showToast('✓ บันทึกในเครื่องแล้ว (ไม่สามารถส่ง Sheets ได้)','error');
+      showToast('✗ ส่งไม่สำเร็จ: '+e.message+' — บันทึกในเครื่องแล้ว','error');
     }
     document.getElementById('submit-text').style.display='';
     document.getElementById('submit-spin').classList.remove('show');
@@ -1724,6 +1870,10 @@ async function syncFromSheet(showLoading) {
         cat4:Number(r.cat4)||0, cat5:Number(r.cat5)||0, cat6:Number(r.cat6)||0,
         cat7:Number(r.cat7)||0,
         criticalDetails: (()=>{ try{return JSON.parse(r.criticalDetails)}catch{return{}} })(),
+        scores: (()=>{ try{return JSON.parse(r.itemScores)}catch{return{}} })(),
+        itemComments: (()=>{ try{return JSON.parse(r.itemComments)}catch{return{}} })(),
+        itemFindings: (()=>{ try{return JSON.parse(r.itemFindings)}catch{return{}} })(),
+        downloadRate: r.downloadRate || '',
         timestamp: r.timestamp
       }));
       // รวมข้อมูลจาก backup (ที่ยังไม่ได้อัปโหลดขึ้น Sheet) เข้าไปด้วย เพื่อไม่ให้หาย
@@ -1833,27 +1983,6 @@ function renderDash() {
     </div>`;
 
   // Heatmap
-  const catNames = AUDIT_STRUCTURE.sections.map(s=>s.title.split('และ')[0].trim().substring(0,10));
-  const hmProps = [...new Set(filtered.map(d=>d.property))];
-  let hmHtml = '<thead><tr><th>หน่วยงาน</th>'+catNames.map(n=>`<th>${n}</th>`).join('')+'<th>รวม%</th></tr></thead><tbody>';
-  hmProps.forEach(prop=>{
-    const rec = filtered.filter(d=>d.property===prop).slice(-1)[0];
-    if(!rec) return;
-    const cats = ['cat1','cat2','cat3','cat4','cat5','cat6','cat7'];
-    const maxes = AUDIT_STRUCTURE.sections.map(s=>s.max);
-    hmHtml += `<tr><td style="font-family:var(--mono);font-size:11px;font-weight:600;color:var(--blue-light)">${prop}</td>`;
-    cats.forEach((c,i)=>{
-      const s = rec[c]??0; const m = maxes[i]; const p = m?Math.round(s/m*100):0;
-      const col = p>=90?'rgba(45,201,126,.25)':p>=70?'rgba(240,165,0,.2)':'rgba(232,68,90,.2)';
-      const tc = p>=90?'var(--green)':p>=70?'var(--accent)':'var(--red)';
-      hmHtml += `<td><span class="hm-cell" style="background:${col};color:${tc}">${p}%</span></td>`;
-    });
-    const gc = !rec.criticalPass?'var(--red)':rec.percentage>=70?'var(--green)':'var(--orange)';
-    hmHtml += `<td><span class="hm-cell" style="background:${!rec.criticalPass?'rgba(232,68,90,.2)':'rgba(45,201,126,.15)'};color:${gc}">${rec.percentage}%</span></td></tr>`;
-  });
-  hmHtml += '</tbody>';
-  document.getElementById('hm-table').innerHTML = hmHtml;
-
   // Property grid
   document.getElementById('prop-grid').innerHTML = barData.map(d=>{
     const g = !d.criticalPass?'CF':d.percentage>=90?'EX':d.percentage>=80?'GD':d.percentage>=70?'OK':'NI';
@@ -1868,6 +1997,10 @@ function renderDash() {
       <div class="prop-name">${d.staff}</div>
       <div class="prop-mini-bar"><div class="prop-mini-fill" style="width:${d.percentage}%;background:${col}"></div></div>
       <div class="prop-meta"><span>${d.totalScore}/${d.effectiveMax} คะแนน</span><span>${d.percentage}%</span></div>
+      ${d.downloadRate ? `<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:10px;color:var(--text3)">📱 Urbanice</span>
+        <span style="font-size:11px;font-family:var(--mono);font-weight:600;color:${parseFloat(d.downloadRate)>=50?'var(--green)':parseFloat(d.downloadRate)>=30?'var(--accent)':'var(--red)'}">${parseFloat(d.downloadRate).toFixed(1)}%</span>
+      </div>` : ''}
     </div>`;
   }).join('');
 }
@@ -1876,7 +2009,6 @@ function renderEmptyDash() {
   ['kpi-avg','kpi-count','kpi-pass','kpi-cf'].forEach(id=>document.getElementById(id).textContent='—');
   ['bar-chart','trend-chart','prop-grid'].forEach(id=>document.getElementById(id).innerHTML=
     '<div style="text-align:center;padding:32px;color:var(--text3);font-size:13px">ยังไม่มีข้อมูล — กรอกแบบประเมินเพื่อดูผล</div>');
-  document.getElementById('hm-table').innerHTML='';
 }
 
 function showPropDetail(prop) {
@@ -1884,11 +2016,24 @@ function showPropDetail(prop) {
   if (!data.length) return;
   const latest = data.slice(-1)[0];
   const cats = AUDIT_STRUCTURE.sections;
+
   let html = `<div class="modal-section-title">ข้อมูลการประเมินล่าสุด</div>
     <div class="modal-score-row"><span class="modal-score-name">พนักงาน</span><span class="modal-score-val">${latest.staff}</span></div>
     <div class="modal-score-row"><span class="modal-score-name">รอบ</span><span class="modal-score-val" style="font-family:var(--mono)">${latest.period}</span></div>
-    <div class="modal-score-row"><span class="modal-score-name">ผู้ Audit</span><span class="modal-score-val">${latest.auditor}</span></div>
-    <div class="modal-section-title">คะแนนแยกหมวด</div>`;
+    <div class="modal-score-row"><span class="modal-score-name">ผู้ Audit</span><span class="modal-score-val">${latest.auditor}</span></div>`;
+
+  // ── Download Rate Urbanice (ถ้ามี) ──
+  if (latest.downloadRate) {
+    const dr = parseFloat(latest.downloadRate);
+    const drCol = dr>=70?'var(--green)':dr>=50?'#8de0b5':dr>=30?'var(--accent)':dr>=10?'var(--orange)':'var(--red)';
+    html += `<div class="modal-score-row" style="background:rgba(26,111,191,0.1);border:1px solid rgba(26,111,191,0.3)">
+      <span class="modal-score-name" style="font-weight:600">📱 Urbanice Download Rate</span>
+      <span class="modal-score-val" style="color:${drCol};font-size:15px">${dr.toFixed(1)}%</span>
+    </div>`;
+  }
+
+  // ── คะแนนแยกหมวด ──
+  html += `<div class="modal-section-title">คะแนนแยกหมวด</div>`;
   cats.forEach(s=>{
     const sc = latest[s.id]??0; const m = s.max;
     const p = Math.round(sc/m*100);
@@ -1898,12 +2043,73 @@ function showPropDetail(prop) {
       <span class="modal-score-val" style="color:${col}">${sc}/${m} (${p}%)</span>
     </div>`;
   });
+
+  // ── คะแนนรายข้อ + comment (เฉพาะข้อมูลใหม่ที่มี scores) ──
+  const itemScores = latest.scores || {};
+  const itemComments = latest.itemComments || {};
+  const itemFindings = latest.itemFindings || {};
+  const hasItemData = Object.keys(itemScores).length > 0;
+
+  // ── สรุปสิ่งที่ต้องแก้ไข (Findings) ──
+  const findingKeys = Object.keys(itemFindings);
+  if (findingKeys.length) {
+    html += `<div class="modal-section-title" style="color:var(--accent)">📋 ผลตรวจ / สิ่งที่ต้องแก้ไข (${findingKeys.length} ข้อ)</div>`;
+    findingKeys.forEach(id => {
+      const f = itemFindings[id];
+      const item = findItem(id);
+      const label = item ? `${item.num} ${item.desc}` : id;
+      html += `<div style="background:rgba(240,165,0,0.07);border:1px solid rgba(240,165,0,0.3);border-radius:8px;padding:10px;margin-bottom:8px">
+        <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:6px">${label}</div>
+        ${f.problem ? `<div style="font-size:11px;color:var(--text2);margin-bottom:4px"><b style="color:var(--red)">ปัญหาที่พบ:</b> ${f.problem}</div>` : ''}
+        ${f.action ? `<div style="font-size:11px;color:var(--text2);margin-bottom:4px"><b style="color:var(--accent)">ให้แก้ไข:</b> ${f.action}</div>` : ''}
+        ${f.due ? `<div style="font-size:11px;color:var(--text2);margin-bottom:4px"><b style="color:var(--blue-light)">กำหนดเสร็จ:</b> <span style="font-family:var(--mono)">${f.due}</span></div>` : ''}
+        ${f.support ? `<div style="font-size:11px;color:var(--text2)"><b style="color:var(--green)">ผู้ตรวจช่วยเหลือ:</b> ${f.support}</div>` : ''}
+      </div>`;
+    });
+  }
+
+  if (hasItemData) {
+    html += `<div class="modal-section-title">คะแนนรายข้อ + หมายเหตุ</div>`;
+    cats.forEach(sec => {
+      // หัวข้อหมวด
+      html += `<div style="font-size:11px;font-weight:700;color:var(--blue-light);margin:10px 0 4px;padding-bottom:3px;border-bottom:1px solid var(--border)">หมวด ${sec.num}: ${sec.title}</div>`;
+      sec.items.forEach(item => {
+        const sc = itemScores[item.id];
+        const comment = itemComments[item.id];
+        if (sc === undefined && !comment) return; // ข้ามข้อที่ไม่ได้ประเมินและไม่มี comment
+
+        let scoreDisplay, scoreCol;
+        if (sc === 'N/A') { scoreDisplay = 'N/A'; scoreCol = 'var(--gray2)'; }
+        else if (sc === undefined) { scoreDisplay = '—'; scoreCol = 'var(--text3)'; }
+        else {
+          const ratio = sc / item.max;
+          scoreCol = ratio>=0.7?'var(--green)':ratio>=0.5?'var(--accent)':'var(--red)';
+          scoreDisplay = `${sc}/${item.max}`;
+        }
+
+        html += `<div style="padding:6px 10px;background:var(--surface2);border-radius:6px;margin-bottom:4px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+            <span style="font-size:11px;color:var(--text2);flex:1">${item.num} ${item.desc}</span>
+            <span style="font-family:var(--mono);font-size:12px;font-weight:600;color:${scoreCol};white-space:nowrap">${scoreDisplay}</span>
+          </div>
+          ${comment ? `<div style="font-size:11px;color:var(--accent);margin-top:4px;padding:4px 8px;background:rgba(240,165,0,0.08);border-radius:4px;border-left:2px solid var(--accent)">💬 ${comment}</div>` : ''}
+        </div>`;
+      });
+    });
+  } else {
+    html += `<div style="font-size:11px;color:var(--text3);padding:10px;text-align:center;background:var(--surface2);border-radius:6px;margin-top:8px">
+      ℹ️ ข้อมูลนี้บันทึกก่อนเพิ่มฟีเจอร์คะแนนรายข้อ — แสดงเฉพาะคะแนนรวมหมวด
+    </div>`;
+  }
+
+  // ── สรุปผล ──
   const gc = !latest.criticalPass?'var(--red)':'var(--green)';
   html += `<div class="modal-section-title">สรุปผล</div>
     <div class="modal-score-row"><span class="modal-score-name">Critical Items</span><span class="modal-score-val" style="color:${gc}">${latest.criticalPass?'✓ ผ่าน':'✗ ไม่ผ่าน'}</span></div>
     <div class="modal-score-row"><span class="modal-score-name">คะแนนรวม</span><span class="modal-score-val">${latest.totalScore}/${latest.effectiveMax} (${latest.percentage}%)</span></div>
     <div class="modal-score-row"><span class="modal-score-name">ผลการประเมิน</span><span class="modal-score-val" style="color:${gc}">${latest.grade}</span></div>`;
 
+  // ── ประวัติ ──
   if (data.length > 1) {
     html += `<div class="modal-section-title">ประวัติ ${data.length} ครั้ง</div>`;
     data.slice(-5).reverse().forEach(d=>{
@@ -1980,7 +2186,13 @@ async function uploadOldData() {
   document.getElementById('btn-upload-old').disabled = true;
 
   let success = 0, failed = 0;
-  for (const rec of dataToUpload) {
+  for (const rec0 of dataToUpload) {
+    // normalize: Sheet ต้องการ itemScores/itemComments/itemFindings เป็น JSON string
+    const rec = {...rec0};
+    ['itemScores','itemComments','itemFindings'].forEach(k => {
+      if (rec[k] && typeof rec[k] === 'object') rec[k] = JSON.stringify(rec[k]);
+    });
+    if (!rec.itemScores && rec.scores) rec.itemScores = JSON.stringify(rec.scores);
     try {
       await fetch(configUrl, {
         method:'POST', mode:'no-cors',
@@ -2256,6 +2468,33 @@ function buildPrintHTML(records, title, subtitle) {
       <tr><td><span class="print-grade pg-cf">Critical Fail</span></td><td>—</td><td>พบความผิดพลาดร้ายแรง ต้องแก้ไขทันที</td></tr>
     </table>
 
+    ${(()=>{
+      const rows = [];
+      records.forEach(d => {
+        const f = d.itemFindings || {};
+        Object.keys(f).forEach(id => {
+          const item = findItem(id);
+          rows.push(`<tr>
+            <td style="font-size:10px"><b>${d.property}</b></td>
+            <td style="font-size:10px">${item ? item.num+' '+item.desc : id}</td>
+            <td style="font-size:10px">${f[id].problem||'-'}</td>
+            <td style="font-size:10px">${f[id].action||'-'}</td>
+            <td style="font-size:10px;text-align:center">${f[id].due||'-'}</td>
+          </tr>`);
+        });
+      });
+      if (!rows.length) return '';
+      return `<div class="print-section-title">สรุปสิ่งที่กำหนดให้หน่วยงานแก้ไข (${rows.length} รายการ)</div>
+      <table class="print-table">
+        <thead><tr>
+          <th style="width:10%">หน่วยงาน</th><th style="width:24%">ข้อประเมิน</th>
+          <th style="width:24%">ปัญหาที่พบ</th><th style="width:28%">สิ่งที่กำหนดให้แก้ไข</th>
+          <th style="width:14%">กำหนดแล้วเสร็จ</th>
+        </tr></thead>
+        <tbody>${rows.join('')}</tbody>
+      </table>`;
+    })()}
+
     <div class="print-sig">
       <div class="print-sig-box">ผู้รับการประเมิน<br><br><br>(……………………………………)<br>ชื่อ-สกุล</div>
       <div class="print-sig-box">ผู้ประเมิน<br><br><br>(……………………………………)<br>ชื่อ-สกุล</div>
@@ -2266,6 +2505,61 @@ function buildPrintHTML(records, title, subtitle) {
       พิมพ์เมื่อ: ${new Date().toLocaleString('th-TH')} | MJP Audit System Rev.02/2569
     </div>
   </div>`;
+}
+
+// สร้างตาราง "หมายเหตุ + ผลตรวจ/สั่งการแก้ไข" สำหรับเอกสารพิมพ์
+function buildFindingsPrintHTML(d) {
+  const comments = d.itemComments || {};
+  const findings = d.itemFindings || {};
+  let out = '';
+
+  // ── ตารางหมายเหตุรายข้อ ──
+  const cKeys = Object.keys(comments);
+  if (cKeys.length) {
+    out += `<div class="print-section-title">หมายเหตุ / หลักฐานประกอบการตรวจ</div>
+    <table class="print-table">
+      <thead><tr><th style="width:32%">ข้อประเมิน</th><th>หมายเหตุ</th></tr></thead>
+      <tbody>`;
+    cKeys.forEach(id => {
+      const item = findItem(id);
+      out += `<tr><td style="font-size:10px">${item ? item.num+' '+item.desc : id}</td>
+        <td style="font-size:10px">${comments[id]}</td></tr>`;
+    });
+    out += `</tbody></table>`;
+  }
+
+  // ── ตารางผลตรวจ / สั่งการแก้ไข ──
+  const fKeys = Object.keys(findings);
+  if (fKeys.length) {
+    out += `<div class="print-section-title">ผลการตรวจ / สิ่งที่กำหนดให้หน่วยงานแก้ไข</div>
+    <table class="print-table">
+      <thead><tr>
+        <th style="width:22%">ข้อประเมิน</th>
+        <th style="width:22%">ปัญหาที่พบ</th>
+        <th style="width:22%">สิ่งที่กำหนดให้แก้ไข</th>
+        <th style="width:12%">กำหนดแล้วเสร็จ</th>
+        <th style="width:22%">ผู้ตรวจช่วยเหลือ/แนะนำ</th>
+      </tr></thead>
+      <tbody>`;
+    fKeys.forEach(id => {
+      const item = findItem(id);
+      const f = findings[id] || {};
+      out += `<tr>
+        <td style="font-size:10px">${item ? item.num+' '+item.desc : id}</td>
+        <td style="font-size:10px">${f.problem||'-'}</td>
+        <td style="font-size:10px">${f.action||'-'}</td>
+        <td style="font-size:10px;text-align:center">${f.due||'-'}</td>
+        <td style="font-size:10px">${f.support||'-'}</td>
+      </tr>`;
+    });
+    out += `</tbody></table>
+    <div style="border:1px solid #1A6FBF;border-radius:6px;padding:8px 10px;font-size:10px;margin-bottom:8px">
+      <b>คำรับรอง:</b> ข้าพเจ้าในฐานะผู้รับการประเมินและผู้จัดการหน่วยงาน
+      ได้รับทราบผลการตรวจและสิ่งที่กำหนดให้แก้ไขข้างต้นครบถ้วนแล้ว
+      และจะดำเนินการแก้ไขให้แล้วเสร็จภายในกำหนดที่ระบุไว้
+    </div>`;
+  }
+  return out;
 }
 
 function buildSinglePrintHTML(d) {
@@ -2340,6 +2634,8 @@ function buildSinglePrintHTML(d) {
       <div class="print-kpi"><div class="print-kpi-val ${d.criticalPass?'':'critical-status-fail'}">${d.criticalPass?'ผ่าน':'ไม่ผ่าน'}</div><div class="print-kpi-label">Critical Items</div></div>
       <div class="print-kpi"><div class="print-kpi-val"><span class="print-grade ${gc}">${d.grade}</span></div><div class="print-kpi-label">ผลการประเมิน</div></div>
     </div>
+
+    ${buildFindingsPrintHTML(d)}
 
     <div class="print-sig">
       <div class="print-sig-box">ผู้รับการประเมิน<br><br><br>(……………………………………)<br>${d.staff||'ชื่อ-สกุล'}</div>
