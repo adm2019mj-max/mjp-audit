@@ -1091,9 +1091,9 @@ const SECTION_LABELS = {mix:'ผสม',remote:'Remote',onsite:'On-site'};
 const USERS = [
   { username: 'admin',    password: 'MJP@Admin2569',  role: 'admin',   displayName: 'ผู้ดูแลระบบ' },
   { username: 'pirawit',  password: 'Audit@2569',      role: 'admin',   displayName: 'พีรวิชญ์ ศรีสวัสดิ์' },
-  { username: 'supawat', password: 'Audit1@2569',     role: 'auditor', displayName: 'ศุภวัฒน์ อุ่นเจริญ' },
-  { username: 'sathaphon', password: 'Audit2@2569',     role: 'auditor', displayName: 'สถาพร ตนะทิพย์' },
-  { username: 'rinrapat', password: 'Audit3@2569',     role: 'auditor', displayName: 'รินทร์รภัสร์ หวังตรงจิตร' },
+  { username: 'auditor1', password: 'Audit1@2569',     role: 'auditor', displayName: 'ผู้ประเมิน 1' },
+  { username: 'auditor2', password: 'Audit2@2569',     role: 'auditor', displayName: 'ผู้ประเมิน 2' },
+  { username: 'auditor3', password: 'Audit3@2569',     role: 'auditor', displayName: 'ผู้ประเมิน 3' },
 ];
 // *** สิ้นสุดส่วนแก้ไข User (role: 'admin' = ทุกอย่าง, 'auditor' = กรอกได้ ไม่มีตั้งค่า) ***
 
@@ -1216,15 +1216,7 @@ function setPropType(type) {
     showToast('ตั้งค่าเป็นหมู่บ้านจัดสรร — ข้อ 6.5 รับพัสดุ เป็น N/A อัตโนมัติ', 'success');
   } else {
     // ถ้ากลับมาเป็นคอนโด → รีเซ็ตข้อ 6.5
-    if (scores['6_5'] === 'N/A') {
-      delete scores['6_5'];
-      const item = findItem('6_5');
-      if (item) item.rubric.forEach(([s]) => {
-        const btn = document.getElementById(`btn-6_5-${s}`);
-        if (btn) btn.className = 'score-btn';
-      });
-      updateScoreBar();
-    }
+    if (scores['6_5'] === 'N/A') clearScore('6_5');
   }
 }
 
@@ -1247,17 +1239,13 @@ function toggleUrbanice(isOff) {
       itemEl.style.opacity = '1';
       itemEl.style.pointerEvents = '';
       if (scores[id] === 'N/A') {
-        delete scores[id];
-        const item = findItem(id);
-        if (item) item.rubric.forEach(([s]) => {
-          const btn = document.getElementById(`btn-${id}-${s}`);
-          if (btn) btn.className = 'score-btn';
-          const pctEl = document.getElementById('pct-' + id);
-          if (pctEl) { pctEl.value = ''; }
-          const badge2 = document.getElementById('pct-badge-' + id);
-          if (badge2) badge2.textContent = '— คะแนน';
-        });
-        updateScoreBar();
+        clearScore(id);
+        const pctEl = document.getElementById('pct-' + id);
+        if (pctEl) pctEl.value = '';
+        const badge2 = document.getElementById('pct-badge-' + id);
+        if (badge2) { badge2.textContent = '— คะแนน'; badge2.style.color = ''; badge2.style.borderColor = ''; badge2.style.background = ''; }
+        const barWrap = document.getElementById('pct-bar-wrap-' + id);
+        if (barWrap) barWrap.style.display = 'none';
       }
     }
   });
@@ -1486,7 +1474,7 @@ function buildForm() {
         // ── ปกติ: ปุ่มเลือกคะแนน ──
         let btnHtml = '';
         item.rubric.forEach(([score, desc]) => {
-          btnHtml += `<button class="score-btn" id="btn-${item.id}-${score}" onclick="setScore('${item.id}',${JSON.stringify(score)},${item.max})">${score}</button>`;
+          btnHtml += `<button class="score-btn" data-score="${score}" onclick="setScore('${item.id}','${score}',${item.max})">${score}</button>`;
         });
         scoreControlHtml = `
         <div class="score-row">
@@ -1608,29 +1596,42 @@ function calcPercentScore(itemId, pctStr, max) {
   // บันทึกค่าและ % ลงใน notes อัตโนมัติ
   setScore(itemId, score, max);
   const notesEl = document.getElementById('notes-'+itemId);
-  if (notesEl && !notesEl.value) {
-    notesEl.value = `Download Rate: ${pct.toFixed(1)}%`;
-    autoResize(notesEl);
+  if (notesEl) {
+    const autoLine = `Download Rate: ${pct.toFixed(1)}%`;
+    // อัปเดตได้เสมอถ้าช่องว่าง หรือเป็นข้อความที่ระบบเติมไว้เอง (กันค่าค้างจากการพิมพ์ทีละตัว)
+    if (!notesEl.value.trim() || /^Download Rate:\s*[\d.]+%$/.test(notesEl.value.trim())) {
+      notesEl.value = autoLine;
+      autoResize(notesEl);
+    }
   }
 }
 
 function setScore(itemId, score, max) {
-  scores[itemId] = score;
-  // Clear buttons for this item
-  const item = findItem(itemId);
-  item.rubric.forEach(([s]) => {
-    const btn = document.getElementById(`btn-${itemId}-${s}`);
-    if (!btn) return;
-    btn.className = 'score-btn';
-  });
-  // Set selected class
-  const btn = document.getElementById(`btn-${itemId}-${score}`);
-  if (btn) {
-    if (score === 'N/A') btn.className = 'score-btn selected-na';
-    else if (score === 0) btn.className = 'score-btn selected-0';
-    else if (score === max) btn.className = 'score-btn selected-full';
-    else btn.className = 'score-btn selected-mid';
+  // normalize: ตัวเลขที่ส่งมาเป็น string ให้แปลงกลับเป็น number
+  const val = (score === 'N/A') ? 'N/A' : Number(score);
+  scores[itemId] = val;
+
+  // ล้างและตั้งสถานะปุ่มทั้งหมดในข้อนี้ (อ้างจาก data-score ไม่ใช่ id)
+  const box = document.getElementById('item-' + itemId);
+  if (box) {
+    box.querySelectorAll('.score-btn').forEach(b => {
+      const bs = b.getAttribute('data-score');
+      const isSel = (val === 'N/A') ? (bs === 'N/A') : (Number(bs) === val && bs !== 'N/A');
+      if (!isSel) { b.className = 'score-btn'; return; }
+      if (val === 'N/A')      b.className = 'score-btn selected-na';
+      else if (val === 0)     b.className = 'score-btn selected-0';
+      else if (val === max)   b.className = 'score-btn selected-full';
+      else                    b.className = 'score-btn selected-mid';
+    });
   }
+  updateScoreBar();
+}
+
+// ล้างคะแนนของข้อหนึ่งให้กลับเป็นยังไม่ประเมิน
+function clearScore(itemId) {
+  delete scores[itemId];
+  const box = document.getElementById('item-' + itemId);
+  if (box) box.querySelectorAll('.score-btn').forEach(b => b.className = 'score-btn');
   updateScoreBar();
 }
 
@@ -1787,20 +1788,23 @@ async function submitForm() {
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify(payload)
       });
-      // ── ตรวจสอบจริงว่าข้อมูลเข้า Sheet แล้วหรือยัง (no-cors มองไม่เห็นผล) ──
-      await new Promise(r=>setTimeout(r, 1200));
+      // ── ตรวจสอบจริงว่าข้อมูลเข้า Sheet แล้วหรือยัง (ลองซ้ำได้ 3 รอบ) ──
       let verified = false;
-      try {
-        const res  = await fetch(configUrl + '?action=read&t=' + Date.now());
-        const json = await res.json();
-        if (json && Array.isArray(json.data)) {
-          verified = json.data.some(r =>
-            String(r.property) === property &&
-            String(r.period).substring(0,7) === period &&
-            String(r.staff).trim() === staff.trim()
-          );
-        }
-      } catch(err) { /* อ่านกลับไม่ได้ ถือว่ายืนยันไม่ได้ */ }
+      for (const wait of [1200, 2000, 3000]) {
+        await new Promise(r=>setTimeout(r, wait));
+        try {
+          const res  = await fetch(configUrl + '?action=read&t=' + Date.now());
+          const json = await res.json();
+          if (json && Array.isArray(json.data)) {
+            verified = json.data.some(r =>
+              String(r.property).trim() === property &&
+              String(r.period).substring(0,7) === period &&
+              String(r.staff).trim() === staff.trim()
+            );
+          }
+        } catch(err) { /* อ่านกลับไม่ได้ ลองรอบถัดไป */ }
+        if (verified) break;
+      }
 
       if (verified) {
         sentToSheet = true;
@@ -1876,18 +1880,34 @@ async function syncFromSheet(showLoading) {
         downloadRate: r.downloadRate || '',
         timestamp: r.timestamp
       }));
-      // รวมข้อมูลจาก backup (ที่ยังไม่ได้อัปโหลดขึ้น Sheet) เข้าไปด้วย เพื่อไม่ให้หาย
-      const backup = JSON.parse(localStorage.getItem('mjp_local_backup')||'[]');
-      let merged = records;
-      if (backup.length > 0) {
-        // กรอง backup ที่ยังไม่มีใน Sheet (เทียบจาก property+period+staff)
-        const sheetKeys = new Set(records.map(r => r.property+'|'+r.period+'|'+r.staff));
-        const notUploaded = backup.filter(b => !sheetKeys.has(b.property+'|'+b.period+'|'+b.staff));
-        merged = records.concat(notUploaded);
-      }
+      // ── รวมข้อมูล: Sheet + รายการในเครื่องที่ยังไม่มีใน Sheet (กันข้อมูลหาย) ──
+      const keyOf = r => [
+        String(r.property||'').trim(),
+        String(r.period||'').substring(0,7),
+        String(r.staff||'').trim()
+      ].join('|');
+
+      const sheetKeys = new Set(records.map(keyOf));
+      const localAll  = [
+        ...JSON.parse(localStorage.getItem('mjp_audits')||'[]'),
+        ...JSON.parse(localStorage.getItem('mjp_local_backup')||'[]')
+      ];
+      const seen = new Set();
+      const notInSheet = [];
+      localAll.forEach(rec => {
+        const k = keyOf(rec);
+        if (sheetKeys.has(k) || seen.has(k)) return;   // มีใน Sheet แล้ว หรือซ้ำในเครื่อง
+        seen.add(k);
+        notInSheet.push(rec);
+      });
+
+      const merged = records.concat(notInSheet);
       localStorage.setItem('mjp_audits', JSON.stringify(merged));
       isSyncing = false;
-      if (showLoading) showToast('✓ ดึงข้อมูลสำเร็จ '+records.length+' รายการ','success');
+      if (showLoading) {
+        showToast(`✓ ดึงข้อมูลสำเร็จ ${records.length} รายการ` +
+          (notInSheet.length ? ` (+${notInSheet.length} รายการในเครื่องที่ยังไม่ขึ้น Sheet)` : ''), 'success');
+      }
       return true;
     }
   } catch(e) {
@@ -1945,7 +1965,7 @@ function renderDash() {
       <div class="cf-item">
         <div class="cf-dot"></div>
         <span class="cf-prop">${d.property}</span>
-        <span class="cf-detail">${d.staff} — ${d.grade}</span>
+        <span class="cf-detail">${esc(d.staff)} — ${esc(d.grade)}</span>
         <span class="cf-date">${d.period}</span>
       </div>`).join('');
   } else cfCard.style.display='none';
@@ -1994,7 +2014,7 @@ function renderDash() {
         <span class="prop-code">${d.property}</span>
         <span class="prop-grade ${gClass}">${gl}</span>
       </div>
-      <div class="prop-name">${d.staff}</div>
+      <div class="prop-name">${esc(d.staff)}</div>
       <div class="prop-mini-bar"><div class="prop-mini-fill" style="width:${d.percentage}%;background:${col}"></div></div>
       <div class="prop-meta"><span>${d.totalScore}/${d.effectiveMax} คะแนน</span><span>${d.percentage}%</span></div>
       ${d.downloadRate ? `<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
@@ -2018,9 +2038,9 @@ function showPropDetail(prop) {
   const cats = AUDIT_STRUCTURE.sections;
 
   let html = `<div class="modal-section-title">ข้อมูลการประเมินล่าสุด</div>
-    <div class="modal-score-row"><span class="modal-score-name">พนักงาน</span><span class="modal-score-val">${latest.staff}</span></div>
+    <div class="modal-score-row"><span class="modal-score-name">พนักงาน</span><span class="modal-score-val">${esc(latest.staff)}</span></div>
     <div class="modal-score-row"><span class="modal-score-name">รอบ</span><span class="modal-score-val" style="font-family:var(--mono)">${latest.period}</span></div>
-    <div class="modal-score-row"><span class="modal-score-name">ผู้ Audit</span><span class="modal-score-val">${latest.auditor}</span></div>`;
+    <div class="modal-score-row"><span class="modal-score-name">ผู้ Audit</span><span class="modal-score-val">${esc(latest.auditor)}</span></div>`;
 
   // ── Download Rate Urbanice (ถ้ามี) ──
   if (latest.downloadRate) {
@@ -2060,10 +2080,10 @@ function showPropDetail(prop) {
       const label = item ? `${item.num} ${item.desc}` : id;
       html += `<div style="background:rgba(240,165,0,0.07);border:1px solid rgba(240,165,0,0.3);border-radius:8px;padding:10px;margin-bottom:8px">
         <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:6px">${label}</div>
-        ${f.problem ? `<div style="font-size:11px;color:var(--text2);margin-bottom:4px"><b style="color:var(--red)">ปัญหาที่พบ:</b> ${f.problem}</div>` : ''}
-        ${f.action ? `<div style="font-size:11px;color:var(--text2);margin-bottom:4px"><b style="color:var(--accent)">ให้แก้ไข:</b> ${f.action}</div>` : ''}
-        ${f.due ? `<div style="font-size:11px;color:var(--text2);margin-bottom:4px"><b style="color:var(--blue-light)">กำหนดเสร็จ:</b> <span style="font-family:var(--mono)">${f.due}</span></div>` : ''}
-        ${f.support ? `<div style="font-size:11px;color:var(--text2)"><b style="color:var(--green)">ผู้ตรวจช่วยเหลือ:</b> ${f.support}</div>` : ''}
+        ${f.problem ? `<div style="font-size:11px;color:var(--text2);margin-bottom:4px"><b style="color:var(--red)">ปัญหาที่พบ:</b> ${esc(f.problem)}</div>` : ''}
+        ${f.action ? `<div style="font-size:11px;color:var(--text2);margin-bottom:4px"><b style="color:var(--accent)">ให้แก้ไข:</b> ${esc(f.action)}</div>` : ''}
+        ${f.due ? `<div style="font-size:11px;color:var(--text2);margin-bottom:4px"><b style="color:var(--blue-light)">กำหนดเสร็จ:</b> <span style="font-family:var(--mono)">${esc(f.due)}</span></div>` : ''}
+        ${f.support ? `<div style="font-size:11px;color:var(--text2)"><b style="color:var(--green)">ผู้ตรวจช่วยเหลือ:</b> ${esc(f.support)}</div>` : ''}
       </div>`;
     });
   }
@@ -2092,7 +2112,7 @@ function showPropDetail(prop) {
             <span style="font-size:11px;color:var(--text2);flex:1">${item.num} ${item.desc}</span>
             <span style="font-family:var(--mono);font-size:12px;font-weight:600;color:${scoreCol};white-space:nowrap">${scoreDisplay}</span>
           </div>
-          ${comment ? `<div style="font-size:11px;color:var(--accent);margin-top:4px;padding:4px 8px;background:rgba(240,165,0,0.08);border-radius:4px;border-left:2px solid var(--accent)">💬 ${comment}</div>` : ''}
+          ${comment ? `<div style="font-size:11px;color:var(--accent);margin-top:4px;padding:4px 8px;background:rgba(240,165,0,0.08);border-radius:4px;border-left:2px solid var(--accent)">💬 ${esc(comment)}</div>` : ''}
         </div>`;
       });
     });
@@ -2380,13 +2400,13 @@ function renderHistory() {
       <td style="color:var(--text3)">${i+1}</td>
       <td style="font-family:var(--mono);font-size:11px">${periodLabel(d.period)}</td>
       <td><span style="font-family:var(--mono);font-size:11px;font-weight:600;color:var(--blue-light)">${d.property}</span></td>
-      <td>${d.staff||'—'}</td>
-      <td style="font-size:11px;color:var(--text3)">${d.position||'—'}</td>
+      <td>${esc(d.staff)||'—'}</td>
+      <td style="font-size:11px;color:var(--text3)">${esc(d.position)||'—'}</td>
       <td style="font-family:var(--mono)">${d.totalScore}/${d.effectiveMax}</td>
       <td class="col-pct" style="color:${col}">${d.percentage}%</td>
       <td><span class="col-grade ${gc}">${d.grade}</span></td>
       <td style="font-weight:700;color:${d.criticalPass?'var(--green)':'var(--red)'}">${d.criticalPass?'✓ ผ่าน':'✗ ไม่ผ่าน'}</td>
-      <td style="font-size:11px">${d.auditor||'—'}</td>
+      <td style="font-size:11px">${esc(d.auditor)||'—'}</td>
       <td style="font-family:var(--mono);font-size:11px">${d.auditDate||'—'}</td>
       <td><button onclick='printSingle(${JSON.stringify(d)})' style="padding:3px 8px;background:var(--surface3);border:1px solid var(--border2);border-radius:5px;color:var(--text2);font-size:11px;cursor:pointer;font-family:var(--font)">พิมพ์</button></td>
     </tr>`;
@@ -2421,8 +2441,8 @@ function buildPrintHTML(records, title, subtitle) {
     return `<tr>
       <td>${i+1}</td>
       <td><b>${d.property}</b></td>
-      <td>${d.staff||'—'}</td>
-      <td style="font-size:10px">${d.position||'—'}</td>
+      <td>${esc(d.staff)||'—'}</td>
+      <td style="font-size:10px">${esc(d.position)||'—'}</td>
       ${catCols}
       <td><b>${d.totalScore}/${d.effectiveMax}</b></td>
       <td><span class="print-grade ${gc}">${d.percentage}%</span></td>
@@ -2477,9 +2497,9 @@ function buildPrintHTML(records, title, subtitle) {
           rows.push(`<tr>
             <td style="font-size:10px"><b>${d.property}</b></td>
             <td style="font-size:10px">${item ? item.num+' '+item.desc : id}</td>
-            <td style="font-size:10px">${f[id].problem||'-'}</td>
-            <td style="font-size:10px">${f[id].action||'-'}</td>
-            <td style="font-size:10px;text-align:center">${f[id].due||'-'}</td>
+            <td style="font-size:10px">${esc(f[id].problem)||'-'}</td>
+            <td style="font-size:10px">${esc(f[id].action)||'-'}</td>
+            <td style="font-size:10px;text-align:center">${esc(f[id].due)||'-'}</td>
           </tr>`);
         });
       });
@@ -2507,6 +2527,14 @@ function buildPrintHTML(records, title, subtitle) {
   </div>`;
 }
 
+// แปลงอักขระพิเศษเป็น HTML entity — กันข้อความที่ผู้ใช้พิมพ์ทำให้หน้าจอ/เอกสารเพี้ยน
+function esc(v) {
+  if (v === null || v === undefined) return '';
+  return String(v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 // สร้างตาราง "หมายเหตุ + ผลตรวจ/สั่งการแก้ไข" สำหรับเอกสารพิมพ์
 function buildFindingsPrintHTML(d) {
   const comments = d.itemComments || {};
@@ -2523,7 +2551,7 @@ function buildFindingsPrintHTML(d) {
     cKeys.forEach(id => {
       const item = findItem(id);
       out += `<tr><td style="font-size:10px">${item ? item.num+' '+item.desc : id}</td>
-        <td style="font-size:10px">${comments[id]}</td></tr>`;
+        <td style="font-size:10px">${esc(comments[id])}</td></tr>`;
     });
     out += `</tbody></table>`;
   }
@@ -2546,10 +2574,10 @@ function buildFindingsPrintHTML(d) {
       const f = findings[id] || {};
       out += `<tr>
         <td style="font-size:10px">${item ? item.num+' '+item.desc : id}</td>
-        <td style="font-size:10px">${f.problem||'-'}</td>
-        <td style="font-size:10px">${f.action||'-'}</td>
-        <td style="font-size:10px;text-align:center">${f.due||'-'}</td>
-        <td style="font-size:10px">${f.support||'-'}</td>
+        <td style="font-size:10px">${esc(f.problem)||'-'}</td>
+        <td style="font-size:10px">${esc(f.action)||'-'}</td>
+        <td style="font-size:10px;text-align:center">${esc(f.due)||'-'}</td>
+        <td style="font-size:10px">${esc(f.support)||'-'}</td>
       </tr>`;
     });
     out += `</tbody></table>
@@ -2595,10 +2623,11 @@ function buildSinglePrintHTML(d) {
     <div class="print-meta">
       <div class="print-meta-item"><span class="print-meta-label">หน่วยงาน:</span><span class="print-meta-val">${d.property}</span></div>
       <div class="print-meta-item"><span class="print-meta-label">รอบประเมิน:</span><span class="print-meta-val">${periodLabelFull(d.period)}</span></div>
-      <div class="print-meta-item"><span class="print-meta-label">ผู้รับการประเมิน:</span><span class="print-meta-val">${d.staff||'—'}</span></div>
-      <div class="print-meta-item"><span class="print-meta-label">ตำแหน่ง:</span><span class="print-meta-val">${d.position||'—'}</span></div>
-      <div class="print-meta-item"><span class="print-meta-label">ผู้ Audit:</span><span class="print-meta-val">${d.auditor||'—'}</span></div>
+      <div class="print-meta-item"><span class="print-meta-label">ผู้รับการประเมิน:</span><span class="print-meta-val">${esc(d.staff)||'—'}</span></div>
+      <div class="print-meta-item"><span class="print-meta-label">ตำแหน่ง:</span><span class="print-meta-val">${esc(d.position)||'—'}</span></div>
+      <div class="print-meta-item"><span class="print-meta-label">ผู้ Audit:</span><span class="print-meta-val">${esc(d.auditor)||'—'}</span></div>
       <div class="print-meta-item"><span class="print-meta-label">วันที่ Audit:</span><span class="print-meta-val">${d.auditDate||'—'}</span></div>
+      ${d.downloadRate ? `<div class="print-meta-item"><span class="print-meta-label">Urbanice Download Rate:</span><span class="print-meta-val">${parseFloat(d.downloadRate).toFixed(1)}%</span></div>` : ''}
     </div>
 
     <div class="print-section-title">คะแนนแยกหมวด</div>
@@ -2638,8 +2667,8 @@ function buildSinglePrintHTML(d) {
     ${buildFindingsPrintHTML(d)}
 
     <div class="print-sig">
-      <div class="print-sig-box">ผู้รับการประเมิน<br><br><br>(……………………………………)<br>${d.staff||'ชื่อ-สกุล'}</div>
-      <div class="print-sig-box">ผู้ประเมิน<br><br><br>(……………………………………)<br>${d.auditor||'ชื่อ-สกุล'}</div>
+      <div class="print-sig-box">ผู้รับการประเมิน<br><br><br>(……………………………………)<br>${esc(d.staff)||'ชื่อ-สกุล'}</div>
+      <div class="print-sig-box">ผู้ประเมิน<br><br><br>(……………………………………)<br>${esc(d.auditor)||'ชื่อ-สกุล'}</div>
       <div class="print-sig-box">ผู้จัดการหน่วยงาน<br><br><br>(……………………………………)<br>ชื่อ-สกุล</div>
       <div class="print-sig-box">ผู้จัดการฝ่ายปฏิบัติการ<br><br><br>(……………………………………)<br>ชื่อ-สกุล</div>
     </div>
