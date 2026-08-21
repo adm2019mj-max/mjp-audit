@@ -315,7 +315,17 @@ select.field-input option{background:var(--navy2);color:var(--text)}
   .print-kpi{text-align:center}
   .print-kpi-val{font-size:20px;font-weight:700;color:#1A6FBF}
   .print-kpi-label{font-size:9px;color:#666;margin-top:2px}
-  .print-sig{margin-top:32px;display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .print-sig{margin-top:32px;display:grid;grid-template-columns:repeat(4,1fr);gap:16px;
+             page-break-inside:avoid;break-inside:avoid}
+  /* กลุ่มคำรับรอง + ลายเซ็น + ท้ายเอกสาร ต้องอยู่หน้าเดียวกันเสมอ */
+  .sign-block{page-break-inside:avoid;break-inside:avoid;page-break-before:auto}
+  .sign-block > *{page-break-inside:avoid;break-inside:avoid}
+  /* ตารางไม่ให้แถวขาดกลาง และหัวตารางซ้ำทุกหน้า */
+  .print-table{page-break-inside:auto}
+  .print-table thead{display:table-header-group}
+  .print-table tr{page-break-inside:avoid;break-inside:avoid}
+  .print-section-title{page-break-after:avoid;break-after:avoid}
+  .print-summary-box{page-break-inside:avoid;break-inside:avoid}
   .print-sig-box{border-top:1px solid #000;padding-top:8px;font-size:10px;text-align:center}
   .critical-status-pass{color:#155724;font-weight:700}
   .critical-status-fail{color:#721c24;font-weight:700}
@@ -1099,9 +1109,9 @@ const SECTION_LABELS = {mix:'ผสม',remote:'Remote',onsite:'On-site'};
 const USERS = [
   { username: 'admin',    password: 'MJP@Admin2569',  role: 'admin',   displayName: 'ผู้ดูแลระบบ' },
   { username: 'pirawit',  password: 'Audit@2569',      role: 'admin',   displayName: 'พีรวิชญ์ ศรีสวัสดิ์' },
-  { username: 'supawat', password: 'Audit1@2569',     role: 'auditor', displayName: 'ศุภวัฒน์ อุ่นเจริญ' },
-  { username: 'sathaphon', password: 'Audit2@2569',     role: 'auditor', displayName: 'สถาพร ตนะทิพย์' },
-  { username: 'rinrapat', password: 'Audit3@2569',     role: 'auditor', displayName: 'รินทร์รภัสร์ หวังตรงจิตร' },
+  { username: 'auditor1', password: 'Audit1@2569',     role: 'auditor', displayName: 'ผู้ประเมิน 1' },
+  { username: 'auditor2', password: 'Audit2@2569',     role: 'auditor', displayName: 'ผู้ประเมิน 2' },
+  { username: 'auditor3', password: 'Audit3@2569',     role: 'auditor', displayName: 'ผู้ประเมิน 3' },
 ];
 // *** สิ้นสุดส่วนแก้ไข User (role: 'admin' = ทุกอย่าง, 'auditor' = กรอกได้ ไม่มีตั้งค่า) ***
 
@@ -2564,14 +2574,16 @@ function buildPrintHTML(records, title, subtitle) {
       </table>`;
     })()}
 
-    <div class="print-sig">
-      <div class="print-sig-box">ผู้รับการประเมิน<br><br><br>(……………………………………)<br>ชื่อ-สกุล</div>
-      <div class="print-sig-box">ผู้ประเมิน<br><br><br>(……………………………………)<br>ชื่อ-สกุล</div>
-      <div class="print-sig-box">ผู้จัดการหน่วยงาน<br><br><br>(……………………………………)<br>ชื่อ-สกุล</div>
-      <div class="print-sig-box">ผู้จัดการฝ่ายปฏิบัติการ<br><br><br>(……………………………………)<br>ชื่อ-สกุล</div>
-    </div>
-    <div style="margin-top:12px;font-size:9px;color:#999;text-align:right">
-      พิมพ์เมื่อ: ${new Date().toLocaleString('th-TH')} | MJP Audit System Rev.02/2569
+    <div class="sign-block">
+      <div class="print-sig">
+        <div class="print-sig-box">ผู้รับการประเมิน<br><br><br>(……………………………………)<br>ชื่อ-สกุล</div>
+        <div class="print-sig-box">ผู้ประเมิน<br><br><br>(……………………………………)<br>ชื่อ-สกุล</div>
+        <div class="print-sig-box">ผู้จัดการหน่วยงาน<br><br><br>(……………………………………)<br>ชื่อ-สกุล</div>
+        <div class="print-sig-box">ผู้จัดการฝ่ายปฏิบัติการ<br><br><br>(……………………………………)<br>ชื่อ-สกุล</div>
+      </div>
+      <div style="margin-top:12px;font-size:9px;color:#999;text-align:right">
+        พิมพ์เมื่อ: ${new Date().toLocaleString('th-TH')} | MJP Audit System Rev.02/2569
+      </div>
     </div>
   </div>`;
 }
@@ -2582,6 +2594,17 @@ function esc(v) {
   return String(v)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// คำรับรองรับทราบ — แสดงเมื่อมีรายการสั่งการแก้ไข
+function certHTML(d) {
+  const f = d.itemFindings || {};
+  if (!Object.keys(f).length) return '';
+  return `<div style="border:1px solid #1A6FBF;border-radius:6px;padding:8px 10px;font-size:10px;margin-bottom:8px">
+    <b>คำรับรอง:</b> ข้าพเจ้าในฐานะผู้รับการประเมินและผู้จัดการหน่วยงาน
+    ได้รับทราบผลการตรวจและสิ่งที่กำหนดให้แก้ไขข้างต้นครบถ้วนแล้ว
+    และจะดำเนินการแก้ไขให้แล้วเสร็จภายในกำหนดที่ระบุไว้
+  </div>`;
 }
 
 // สร้างตาราง "หมายเหตุ + ผลตรวจ/สั่งการแก้ไข" สำหรับเอกสารพิมพ์
@@ -2629,12 +2652,7 @@ function buildFindingsPrintHTML(d) {
         <td style="font-size:10px">${esc(f.support)||'-'}</td>
       </tr>`;
     });
-    out += `</tbody></table>
-    <div style="border:1px solid #1A6FBF;border-radius:6px;padding:8px 10px;font-size:10px;margin-bottom:8px">
-      <b>คำรับรอง:</b> ข้าพเจ้าในฐานะผู้รับการประเมินและผู้จัดการหน่วยงาน
-      ได้รับทราบผลการตรวจและสิ่งที่กำหนดให้แก้ไขข้างต้นครบถ้วนแล้ว
-      และจะดำเนินการแก้ไขให้แล้วเสร็จภายในกำหนดที่ระบุไว้
-    </div>`;
+    out += `</tbody></table>`;
   }
   return out;
 }
@@ -2715,14 +2733,17 @@ function buildSinglePrintHTML(d) {
 
     ${buildFindingsPrintHTML(d)}
 
-    <div class="print-sig">
-      <div class="print-sig-box">ผู้รับการประเมิน<br><br><br>(……………………………………)<br>${esc(d.staff)||'ชื่อ-สกุล'}</div>
-      <div class="print-sig-box">ผู้ประเมิน<br><br><br>(……………………………………)<br>${esc(d.auditor)||'ชื่อ-สกุล'}</div>
-      <div class="print-sig-box">ผู้จัดการหน่วยงาน<br><br><br>(……………………………………)<br>ชื่อ-สกุล</div>
-      <div class="print-sig-box">ผู้จัดการฝ่ายปฏิบัติการ<br><br><br>(……………………………………)<br>ชื่อ-สกุล</div>
-    </div>
-    <div style="margin-top:10px;font-size:9px;color:#999;text-align:right">
-      พิมพ์เมื่อ: ${new Date().toLocaleString('th-TH')} | MJP Audit System Rev.02/2569
+    <div class="sign-block">
+      ${certHTML(d)}
+      <div class="print-sig">
+        <div class="print-sig-box">ผู้รับการประเมิน<br><br><br>(……………………………………)<br>${esc(d.staff)||'ชื่อ-สกุล'}</div>
+        <div class="print-sig-box">ผู้ประเมิน<br><br><br>(……………………………………)<br>${esc(d.auditor)||'ชื่อ-สกุล'}</div>
+        <div class="print-sig-box">ผู้จัดการหน่วยงาน<br><br><br>(……………………………………)<br>ชื่อ-สกุล</div>
+        <div class="print-sig-box">ผู้จัดการฝ่ายปฏิบัติการ<br><br><br>(……………………………………)<br>ชื่อ-สกุล</div>
+      </div>
+      <div style="margin-top:10px;font-size:9px;color:#999;text-align:right">
+        พิมพ์เมื่อ: ${new Date().toLocaleString('th-TH')} | MJP Audit System Rev.02/2569
+      </div>
     </div>
   </div>`;
 }
