@@ -806,6 +806,9 @@ const HEADERS = [
 
 // ตรวจและเติมหัวคอลัมน์ให้ครบเสมอ (รองรับ Sheet เดิมที่มีข้อมูลอยู่แล้ว)
 function ensureHeaders(sheet) {
+  // บังคับคอลัมน์ period (C) และ auditDate (G) เป็นข้อความ กัน Sheets แปลงเป็นวันที่
+  sheet.getRange('C:C').setNumberFormat('@');
+  sheet.getRange('G:G').setNumberFormat('@');
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(HEADERS);
     return;
@@ -872,7 +875,12 @@ function doGet(e) {
       const obj = {};
       headers.forEach((h,i) => {
         let v = r[i];
-        if (v instanceof Date) v = v.toISOString();
+        if (v instanceof Date) {
+          // ใช้เวลาไทย ไม่ใช้ toISOString (จะเพี้ยนไป 1 วัน/เดือน)
+          v = (h === 'period')
+            ? Utilities.formatDate(v, 'Asia/Bangkok', 'yyyy-MM')
+            : Utilities.formatDate(v, 'Asia/Bangkok', 'yyyy-MM-dd');
+        }
         obj[h] = v;
       });
       return obj;
@@ -1091,9 +1099,9 @@ const SECTION_LABELS = {mix:'ผสม',remote:'Remote',onsite:'On-site'};
 const USERS = [
   { username: 'admin',    password: 'MJP@Admin2569',  role: 'admin',   displayName: 'ผู้ดูแลระบบ' },
   { username: 'pirawit',  password: 'Audit@2569',      role: 'admin',   displayName: 'พีรวิชญ์ ศรีสวัสดิ์' },
-  { username: 'supawat', password: 'Audit1@2569',     role: 'auditor', displayName: 'ศุภวัฒน์ อุ่นเจริญ' },
-  { username: 'sathaphon', password: 'Audit2@2569',     role: 'auditor', displayName: 'สถาพร ตนะทิพย์' },
-  { username: 'rinrapat', password: 'Audit3@2569',     role: 'auditor', displayName: 'รินทร์รภัสร์ หวังตรงจิตร' },
+  { username: 'auditor1', password: 'Audit1@2569',     role: 'auditor', displayName: 'ผู้ประเมิน 1' },
+  { username: 'auditor2', password: 'Audit2@2569',     role: 'auditor', displayName: 'ผู้ประเมิน 2' },
+  { username: 'auditor3', password: 'Audit3@2569',     role: 'auditor', displayName: 'ผู้ประเมิน 3' },
 ];
 // *** สิ้นสุดส่วนแก้ไข User (role: 'admin' = ทุกอย่าง, 'auditor' = กรอกได้ ไม่มีตั้งค่า) ***
 
@@ -1776,6 +1784,11 @@ async function submitForm() {
   stored.push(record);
   localStorage.setItem('mjp_audits', JSON.stringify(stored));
 
+  // เก็บเข้า backup ทันที — กันข้อมูลหายระหว่างรอผลยืนยัน (จะลบออกเมื่อยืนยันว่าขึ้น Sheet แล้ว)
+  const bk0 = JSON.parse(localStorage.getItem('mjp_local_backup')||'[]');
+  bk0.push(record);
+  localStorage.setItem('mjp_local_backup', JSON.stringify(bk0));
+
   // Send to Google Sheets if URL configured
   let sentToSheet = false;
   if (configUrl) {
@@ -1796,11 +1809,8 @@ async function submitForm() {
           const res  = await fetch(configUrl + '?action=read&t=' + Date.now());
           const json = await res.json();
           if (json && Array.isArray(json.data)) {
-            verified = json.data.some(r =>
-              String(r.property).trim() === property &&
-              String(r.period).substring(0,7) === period &&
-              String(r.staff).trim() === staff.trim()
-            );
+            const want = recKey({property, period, staff});
+            verified = json.data.some(r => recKey(r) === want);
           }
         } catch(err) { /* อ่านกลับไม่ได้ ลองรอบถัดไป */ }
         if (verified) break;
@@ -1822,11 +1832,12 @@ async function submitForm() {
     showToast('✓ บันทึกในเครื่องแล้ว (ยังไม่ได้ตั้งค่า Sheets URL)','success');
   }
 
-  // ถ้ายังส่งขึ้น Sheet ไม่ได้ → เก็บ backup ไว้รออัปโหลดภายหลัง
-  if (!sentToSheet) {
-    const backup = JSON.parse(localStorage.getItem('mjp_local_backup')||'[]');
-    backup.push(record);
-    localStorage.setItem('mjp_local_backup', JSON.stringify(backup));
+  // ยืนยันแล้วว่าขึ้น Sheet → เอาออกจาก backup (ถ้ายังไม่ยืนยัน ให้คงไว้รอส่งซ้ำ)
+  if (sentToSheet) {
+    const myKey = recKey(record);
+    const bk = JSON.parse(localStorage.getItem('mjp_local_backup')||'[]')
+                 .filter(r => recKey(r) !== myKey);
+    localStorage.setItem('mjp_local_backup', JSON.stringify(bk));
   }
 
   // ลบ Draft หลัง submit สำเร็จ
@@ -1838,6 +1849,48 @@ async function submitForm() {
     await syncFromSheet(false);
     renderDash();
   }, 1800);
+}
+
+// แปลงค่า period ให้เป็น YYYY-MM เสมอ — รองรับกรณี Sheet ส่งกลับเป็นวันที่ ISO
+// (Google Sheets แปลง "2026-08" เป็นวันที่ แล้ว UTC ทำให้เพี้ยนเป็น 2026-07-31T17:00Z)
+function normPeriod(v) {
+  if (v === null || v === undefined) return '';
+  const s = String(v).trim();
+  if (/^\d{4}-\d{2}$/.test(s)) return s;                  // ถูกต้องอยู่แล้ว
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T/);          // ISO datetime → ปรับเป็นเวลาไทย
+  if (m) {
+    const dt = new Date(s);
+    if (!isNaN(dt)) {
+      const th = new Date(dt.getTime() + 7 * 3600 * 1000); // UTC+7
+      return `${th.getUTCFullYear()}-${String(th.getUTCMonth() + 1).padStart(2, '0')}`;
+    }
+  }
+  return s.substring(0, 7);
+}
+
+// แปลงวันที่ให้เป็น YYYY-MM-DD เสมอ
+function normDate(v) {
+  if (v === null || v === undefined) return '';
+  const s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const m = s.match(/^\d{4}-\d{2}-\d{2}T/);
+  if (m) {
+    const dt = new Date(s);
+    if (!isNaN(dt)) {
+      const th = new Date(dt.getTime() + 7 * 3600 * 1000);
+      return th.toISOString().substring(0, 10);
+    }
+  }
+  return s.substring(0, 10);
+}
+
+// คีย์เปรียบเทียบรายการประเมิน (หน่วยงาน + รอบ + ชื่อพนักงาน)
+function recKey(r) {
+  return [
+    String(r.property || '').trim(),
+    normPeriod(r.period),
+    String(r.staff || '').trim()
+  ].join('|');
 }
 
 // ═══════════════════════ DASHBOARD ═══════════════════════
@@ -1863,8 +1916,8 @@ async function syncFromSheet(showLoading) {
     if (json && Array.isArray(json.data)) {
       // แปลงข้อมูลจาก Sheet ให้อยู่ในรูปแบบเดียวกับแอป
       const records = json.data.map(r => ({
-        property: r.property, period: r.period, staff: r.staff,
-        position: r.position, auditor: r.auditor, auditDate: r.auditDate,
+        property: r.property, period: normPeriod(r.period), staff: r.staff,
+        position: r.position, auditor: r.auditor, auditDate: normDate(r.auditDate),
         totalScore: Number(r.totalScore)||0,
         effectiveMax: Number(r.effectiveMax)||100,
         percentage: Number(r.percentage)||0,
@@ -1880,33 +1933,29 @@ async function syncFromSheet(showLoading) {
         downloadRate: r.downloadRate || '',
         timestamp: r.timestamp
       }));
-      // ── รวมข้อมูล: Sheet + รายการในเครื่องที่ยังไม่มีใน Sheet (กันข้อมูลหาย) ──
-      const keyOf = r => [
-        String(r.property||'').trim(),
-        String(r.period||'').substring(0,7),
-        String(r.staff||'').trim()
-      ].join('|');
-
-      const sheetKeys = new Set(records.map(keyOf));
-      const localAll  = [
-        ...JSON.parse(localStorage.getItem('mjp_audits')||'[]'),
-        ...JSON.parse(localStorage.getItem('mjp_local_backup')||'[]')
-      ];
+      // ── รวมข้อมูล: Sheet คือแหล่งจริง + เฉพาะรายการที่ยังส่งขึ้น Sheet ไม่สำเร็จ ──
+      // (ไม่ดึงรายการที่ถูกลบออกจาก Sheet กลับมา)
+      const sheetKeys = new Set(records.map(recKey));
+      const backup    = JSON.parse(localStorage.getItem('mjp_local_backup')||'[]');
       const seen = new Set();
-      const notInSheet = [];
-      localAll.forEach(rec => {
-        const k = keyOf(rec);
-        if (sheetKeys.has(k) || seen.has(k)) return;   // มีใน Sheet แล้ว หรือซ้ำในเครื่อง
+      const pending = [];
+      backup.forEach(rec => {
+        const k = recKey(rec);
+        if (sheetKeys.has(k) || seen.has(k)) return;
         seen.add(k);
-        notInSheet.push(rec);
+        pending.push(rec);
       });
+      // รายการที่ยืนยันแล้วว่าขึ้น Sheet → ลบออกจาก backup
+      if (pending.length !== backup.length) {
+        localStorage.setItem('mjp_local_backup', JSON.stringify(pending));
+      }
 
-      const merged = records.concat(notInSheet);
+      const merged = records.concat(pending);
       localStorage.setItem('mjp_audits', JSON.stringify(merged));
       isSyncing = false;
       if (showLoading) {
         showToast(`✓ ดึงข้อมูลสำเร็จ ${records.length} รายการ` +
-          (notInSheet.length ? ` (+${notInSheet.length} รายการในเครื่องที่ยังไม่ขึ้น Sheet)` : ''), 'success');
+          (pending.length ? ` (+${pending.length} รายการรอส่งขึ้น Sheet)` : ''), 'success');
       }
       return true;
     }
