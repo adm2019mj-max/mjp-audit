@@ -468,8 +468,8 @@ select.field-input option{background:var(--navy2);color:var(--text)}
   <!-- DRAFT BANNER -->
   <div class="draft-banner" id="draft-banner">
     <span class="draft-dot"></span>
-    <span class="draft-text" id="draft-text">มี Draft ที่บันทึกค้างไว้ — กำลังโหลด...</span>
-    <button class="draft-clear" onclick="clearDraft()">ล้าง Draft</button>
+    <span class="draft-text" id="draft-text">มี Draft ค้างอยู่</span>
+    <button class="draft-clear" onclick="openDraftList()">ดูรายการ Draft</button>
   </div>
 
   <!-- header -->
@@ -619,8 +619,12 @@ select.field-input option{background:var(--navy2);color:var(--text)}
   <!-- SUBMIT -->
   <div class="submit-area">
     <button class="btn-draft" onclick="saveDraft()">
-      ⏸ บันทึก Draft — กรอกต่อภายหลัง
+      ⏸ บันทึก Draft — เก็บไว้กรอกต่อภายหลัง
     </button>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button onclick="openDraftList()" style="flex:1;padding:10px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text2);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)">📋 รายการ Draft ที่ค้างไว้</button>
+      <button onclick="newAudit()" style="flex:1;padding:10px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text2);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font)">＋ เริ่มหน่วยงานใหม่</button>
+    </div>
     <button class="btn-submit" id="btn-submit" onclick="submitForm()">
       <span id="submit-text">บันทึกผลการประเมิน → Google Sheets</span>
       <span class="spinner" id="submit-spin"></span>
@@ -927,6 +931,22 @@ function doGet(e) {
 </div>
 
 <!-- MODAL -->
+<div class="modal-overlay" id="draft-modal" onclick="closeDraftList(event)">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">📋 Draft ที่บันทึกค้างไว้</div>
+      <button class="modal-close" onclick="document.getElementById('draft-modal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.6">
+        แต่ละหน่วยงานเก็บแยกกัน บันทึกค้างไว้ได้หลายชุดพร้อมกัน<br>
+        กด <b style="color:var(--text2)">ทำต่อ</b> เพื่อเปิดกลับมากรอกต่อจากเดิม
+      </div>
+      <div id="draft-list"></div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal" onclick="closeModal(event)">
   <div class="modal">
     <div class="modal-head">
@@ -1135,9 +1155,9 @@ const SECTION_LABELS = {mix:'ผสม',remote:'Remote',onsite:'On-site'};
 const USERS = [
   { username: 'admin',    password: 'MJP@Admin2569',  role: 'admin',   displayName: 'ผู้ดูแลระบบ' },
   { username: 'pirawit',  password: 'Audit@2569',      role: 'admin',   displayName: 'พีรวิชญ์ ศรีสวัสดิ์' },
-  { username: 'supawat', password: 'Audit1@2569',     role: 'auditor', displayName: 'ศุภวัฒน์ อุ่นเจริญ' },
-  { username: 'sathaphon', password: 'Audit2@2569',     role: 'auditor', displayName: 'สถาพร ตนะทิพย์' },
-  { username: 'rinrapat', password: 'Audit3@2569',     role: 'auditor', displayName: 'รินทร์รภัสร์ หวังตรงจิตร' },
+  { username: 'auditor1', password: 'Audit1@2569',     role: 'auditor', displayName: 'ผู้ประเมิน 1' },
+  { username: 'auditor2', password: 'Audit2@2569',     role: 'auditor', displayName: 'ผู้ประเมิน 2' },
+  { username: 'auditor3', password: 'Audit3@2569',     role: 'auditor', displayName: 'ผู้ประเมิน 3' },
 ];
 // *** สิ้นสุดส่วนแก้ไข User (role: 'admin' = ทุกอย่าง, 'auditor' = กรอกได้ ไม่มีตั้งค่า) ***
 
@@ -1233,6 +1253,8 @@ function lockFormForViewer() {
     if (submitArea) submitArea.style.display = 'none';
     const draftBanner = document.getElementById('draft-banner');
     if (draftBanner) draftBanner.style.display = 'none';
+    const dm = document.getElementById('draft-modal');
+    if (dm) dm.classList.remove('open');
   }, 200);
 }
 
@@ -1339,9 +1361,38 @@ function collectFindings() {
 }
 
 // ═══════════════════════ DRAFT ═══════════════════════
-const DRAFT_KEY = 'mjp_audit_draft';
+const DRAFTS_KEY = 'mjp_drafts';          // เก็บหลายชุด {key: draft}
+const DRAFT_KEY  = 'mjp_audit_draft';     // ของเดิม (ใช้ย้ายข้อมูลครั้งเดียว)
 
-function saveDraft() {
+// คีย์ของ Draft = หน่วยงาน + รอบประเมิน
+function draftKey(prop, period) {
+  return String(prop || '').trim() + '|' + String(period || '').substring(0, 7);
+}
+function getDrafts() {
+  try { return JSON.parse(localStorage.getItem(DRAFTS_KEY) || '{}'); }
+  catch { return {}; }
+}
+function setDrafts(obj) {
+  localStorage.setItem(DRAFTS_KEY, JSON.stringify(obj));
+}
+
+// ย้าย Draft แบบเดิม (ชุดเดียว) เข้าระบบใหม่ ทำครั้งเดียว
+function migrateOldDraft() {
+  const raw = localStorage.getItem(DRAFT_KEY);
+  if (!raw) return;
+  try {
+    const d = JSON.parse(raw);
+    if (d && d.property) {
+      const all = getDrafts();
+      all[draftKey(d.property, d.period)] = d;
+      setDrafts(all);
+    }
+  } catch (e) { /* ข้ามถ้าเสียหาย */ }
+  localStorage.removeItem(DRAFT_KEY);
+}
+
+// ── เก็บข้อมูลจากฟอร์มเป็นอ็อบเจ็กต์ Draft ──
+function collectDraft() {
   const draft = {
     savedAt: new Date().toISOString(),
     property: document.getElementById('f-property').value,
@@ -1360,107 +1411,230 @@ function saveDraft() {
   };
   AUDIT_STRUCTURE.sections.forEach(sec =>
     sec.items.forEach(item => {
-      const notesEl = document.getElementById('notes-'+item.id);
+      const notesEl = document.getElementById('notes-' + item.id);
       if (notesEl?.value) draft.notes[item.id] = notesEl.value;
-      // บันทึกค่า % สำหรับ percent input
       if (item.inputType === 'percent') {
-        const pctEl = document.getElementById('pct-'+item.id);
+        const pctEl = document.getElementById('pct-' + item.id);
         if (pctEl?.value) draft.percentValues[item.id] = pctEl.value;
       }
     })
   );
-  localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-  updateDraftBanner();
-  showToast('⏸ บันทึก Draft เรียบร้อย — กลับมากรอกต่อได้เลย','success');
+  return draft;
 }
 
-function loadDraft() {
-  const raw = localStorage.getItem(DRAFT_KEY);
-  if (!raw) return;
-  try {
-    const d = JSON.parse(raw);
-    if (d.property) document.getElementById('f-property').value = d.property;
-    if (d.period)   document.getElementById('f-period').value   = d.period;
-    if (d.staff)    document.getElementById('f-staff').value    = d.staff;
-    if (d.position) document.getElementById('f-position').value = d.position;
-    if (d.auditor)  document.getElementById('f-auditor').value  = d.auditor;
-    if (d.date)     document.getElementById('f-date').value     = d.date;
-    // กู้คืน percent inputs ก่อน (จะ setScore ให้ด้วย)
-    if (d.percentValues) {
-      Object.entries(d.percentValues).forEach(([id, pct]) => {
-        const pctEl = document.getElementById('pct-'+id);
-        const item  = findItem(id);
-        if (pctEl && item) {
-          pctEl.value = pct;
-          calcPercentScore(id, pct, item.max);
-        }
-      });
-    }
-    // กู้คืนคะแนนอื่นๆ (ไม่ใช่ percent)
-    if (d.scores) {
-      Object.entries(d.scores).forEach(([id, val]) => {
-        const item = findItem(id);
-        if (item && item.inputType !== 'percent') setScore(id, val, item.max);
-      });
-    }
-    if (d.criticalScores) {
-      Object.entries(d.criticalScores).forEach(([id, val]) => setCritical(id, val));
-    }
-    if (d.notes) {
-      Object.entries(d.notes).forEach(([id, val]) => {
-        const el = document.getElementById('notes-'+id);
-        if (el) { el.value = val; autoResize(el); }
-      });
-    }
-    // กู้คืนผลตรวจ 4 ช่อง
-    if (d.findings) {
-      Object.entries(d.findings).forEach(([id, f]) => {
-        ['problem','action','due','support'].forEach(k => {
-          const el = document.getElementById('fd-'+k+'-'+id);
-          if (el && f[k]) { el.value = f[k]; if (el.tagName==='TEXTAREA') autoResize(el); }
-        });
-        markFindings(id);
-      });
-    }
-    // กู้คืนประเภทหน่วยงาน / Urbanice
-    if (d.propType === 'village') {
-      const r = document.getElementById('pt-village');
-      if (r) { r.checked = true; propType = 'village'; }
-    }
-    if (d.urbaniceOff) {
-      const cb = document.getElementById('no-urbanice');
-      if (cb) { cb.checked = true; urbaniceOff = true;
-        const badge = document.getElementById('urbanice-off-badge');
-        if (badge) badge.style.display = 'flex';
-      }
-    }
-    updateDraftBanner();
-  } catch(e) { console.error('loadDraft error:', e); }
+function saveDraft() {
+  const prop = document.getElementById('f-property').value;
+  const period = document.getElementById('f-period').value;
+  if (!prop || !period) {
+    showToast('กรุณาเลือกหน่วยงานและรอบประเมินก่อนบันทึก Draft', 'error');
+    return;
+  }
+  const all = getDrafts();
+  all[draftKey(prop, period)] = collectDraft();
+  setDrafts(all);
+  updateDraftBanner();
+  showToast('⏸ บันทึก Draft ' + prop + ' เรียบร้อย — เลือกหน่วยงานอื่นเพื่อประเมินต่อได้เลย', 'success');
 }
 
-function clearDraft() {
-  if (!confirm('ล้าง Draft ที่บันทึกไว้ใช่ไหม?')) return;
-  localStorage.removeItem(DRAFT_KEY);
-  updateDraftBanner();
-  showToast('ล้าง Draft เรียบร้อย','success');
+// ── ล้างฟอร์มให้ว่าง เพื่อเริ่มหน่วยงานใหม่ หรือก่อนโหลด Draft อื่น ──
+function resetForm(keepAuditor) {
+  scores = {};
+  criticalScores = {};
+  propType = 'condo';
+  urbaniceOff = false;
+
+  document.getElementById('f-property').value = '';
+  document.getElementById('f-staff').value = '';
+  document.getElementById('f-position').value = '';
+  if (!keepAuditor) document.getElementById('f-auditor').value = '';
+
+  const ptc = document.getElementById('pt-condo'); if (ptc) ptc.checked = true;
+  const cbu = document.getElementById('no-urbanice'); if (cbu) cbu.checked = false;
+  const badge = document.getElementById('urbanice-off-badge'); if (badge) badge.style.display = 'none';
+
+  AUDIT_STRUCTURE.sections.forEach(sec => sec.items.forEach(item => {
+    const box = document.getElementById('item-' + item.id);
+    if (box) {
+      box.style.opacity = '1';
+      box.style.pointerEvents = '';
+      box.querySelectorAll('.score-btn').forEach(b => b.className = 'score-btn');
+    }
+    const pctEl = document.getElementById('pct-' + item.id);
+    if (pctEl) pctEl.value = '';
+    const pb = document.getElementById('pct-badge-' + item.id);
+    if (pb) { pb.textContent = '— คะแนน'; pb.style.color = ''; pb.style.borderColor = ''; pb.style.background = ''; }
+    const bw = document.getElementById('pct-bar-wrap-' + item.id);
+    if (bw) bw.style.display = 'none';
+    const nt = document.getElementById('notes-' + item.id);
+    if (nt) { nt.value = ''; nt.style.height = 'auto'; }
+    ['problem','action','due','support'].forEach(k => {
+      const el = document.getElementById('fd-' + k + '-' + item.id);
+      if (el) { el.value = ''; if (el.tagName === 'TEXTAREA') el.style.height = 'auto'; }
+    });
+    markFindings(item.id);
+    const fb = document.getElementById('find-box-' + item.id);
+    if (fb) fb.classList.remove('open');
+  }));
+  AUDIT_STRUCTURE.criticalItems.forEach(ci => {
+    const pb2 = document.getElementById('ci-pass-' + ci.id);
+    const fb2 = document.getElementById('ci-fail-' + ci.id);
+    if (pb2) pb2.className = 'ci-btn';
+    if (fb2) fb2.className = 'ci-btn';
+  });
+  updateScoreBar();
 }
+
+// เริ่มประเมินหน่วยงานใหม่ (ไม่ลบ Draft ที่บันทึกไว้)
+function newAudit() {
+  if (Object.keys(scores).length || Object.keys(criticalScores).length) {
+    if (!confirm('ล้างแบบฟอร์มเพื่อเริ่มหน่วยงานใหม่?\n\nข้อมูลที่ยังไม่ได้กด "บันทึก Draft" จะหายไป')) return;
+  }
+  resetForm(true);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  showToast('ล้างแบบฟอร์มแล้ว — เลือกหน่วยงานใหม่ได้เลย', 'success');
+}
+
+// ── โหลด Draft ตามคีย์ ──
+function loadDraftByKey(key) {
+  const all = getDrafts();
+  const d = all[key];
+  if (!d) { showToast('ไม่พบ Draft นี้', 'error'); return; }
+
+  resetForm(true);
+
+  if (d.property) document.getElementById('f-property').value = d.property;
+  if (d.period)   document.getElementById('f-period').value   = d.period;
+  if (d.staff)    document.getElementById('f-staff').value    = d.staff;
+  if (d.position) document.getElementById('f-position').value = d.position;
+  if (d.auditor)  document.getElementById('f-auditor').value  = d.auditor;
+  if (d.date)     document.getElementById('f-date').value     = d.date;
+
+  if (d.propType === 'village') {
+    const r = document.getElementById('pt-village');
+    if (r) { r.checked = true; propType = 'village'; }
+  }
+  if (d.urbaniceOff) {
+    const cb = document.getElementById('no-urbanice');
+    if (cb) { cb.checked = true; urbaniceOff = true; }
+    const badge = document.getElementById('urbanice-off-badge');
+    if (badge) badge.style.display = 'flex';
+  }
+  if (d.percentValues) {
+    Object.entries(d.percentValues).forEach(([id, pct]) => {
+      const pctEl = document.getElementById('pct-' + id);
+      const item  = findItem(id);
+      if (pctEl && item) { pctEl.value = pct; calcPercentScore(id, pct, item.max); }
+    });
+  }
+  if (d.scores) {
+    Object.entries(d.scores).forEach(([id, val]) => {
+      const item = findItem(id);
+      if (!item) return;
+      // ข้อ percent ที่มีค่าปกติ ถูกคืนจาก percentValues แล้ว
+      // แต่ถ้าเป็น N/A ต้องตั้งตรงนี้ ไม่งั้นฐานคะแนนผิด
+      if (item.inputType === 'percent') { if (val === 'N/A') setScore(id, 'N/A', item.max); return; }
+      setScore(id, val, item.max);
+    });
+  }
+  if (d.criticalScores) Object.entries(d.criticalScores).forEach(([id, val]) => setCritical(id, val));
+  if (d.notes) {
+    Object.entries(d.notes).forEach(([id, val]) => {
+      const el = document.getElementById('notes-' + id);
+      if (el) { el.value = val; autoResize(el); }
+    });
+  }
+  if (d.findings) {
+    Object.entries(d.findings).forEach(([id, f]) => {
+      ['problem','action','due','support'].forEach(k => {
+        const el = document.getElementById('fd-' + k + '-' + id);
+        if (el && f[k]) { el.value = f[k]; if (el.tagName === 'TEXTAREA') autoResize(el); }
+      });
+      markFindings(id);
+    });
+  }
+  updateDraftBanner();
+  closeDraftList();
+  showPage('form');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  showToast('เปิด Draft ' + (d.property || '') + ' แล้ว — กรอกต่อได้เลย', 'success');
+}
+
+function deleteDraft(key) {
+  const all = getDrafts();
+  const d = all[key];
+  if (!d) return;
+  if (!confirm('ลบ Draft ของ ' + (d.property || '') + ' รอบ ' + periodLabel(d.period) + ' ใช่ไหม?')) return;
+  delete all[key];
+  setDrafts(all);
+  updateDraftBanner();
+  renderDraftList();
+  showToast('ลบ Draft เรียบร้อย', 'success');
+}
+
+// เดิมเรียก clearDraft() — คงไว้ให้เปิดรายการ Draft แทน
+function clearDraft() { openDraftList(); }
+
+// โหลด Draft อัตโนมัติตอนเปิดแอป — ไม่โหลดแล้ว แค่แสดงแบนเนอร์
+function loadDraft() { updateDraftBanner(); }
 
 function updateDraftBanner() {
-  const raw = localStorage.getItem(DRAFT_KEY);
   const banner = document.getElementById('draft-banner');
   const text   = document.getElementById('draft-text');
   if (!banner) return;
-  if (!raw) { banner.classList.remove('show'); return; }
-  try {
-    const d = JSON.parse(raw);
-    const dt = new Date(d.savedAt);
-    const dtStr = dt.toLocaleString('th-TH',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
-    const prop = d.property || '—';
-    const period = d.period || '—';
-    const scoreCount = Object.keys(d.scores||{}).length;
-    text.textContent = `Draft ค้างอยู่: ${prop} | ${period} | กรอกแล้ว ${scoreCount} ข้อ | บันทึกเมื่อ ${dtStr}`;
-    banner.classList.add('show');
-  } catch(e) { banner.classList.remove('show'); }
+  const all = getDrafts();
+  const keys = Object.keys(all);
+  if (!keys.length) { banner.classList.remove('show'); return; }
+  const names = keys.map(k => all[k].property || '—').slice(0, 4).join(', ');
+  text.textContent = 'มี Draft ค้างอยู่ ' + keys.length + ' ชุด: ' + names + (keys.length > 4 ? ' ...' : '');
+  banner.classList.add('show');
+}
+
+// ── หน้าต่างรายการ Draft ──
+function openDraftList() { renderDraftList(); document.getElementById('draft-modal').classList.add('open'); }
+function closeDraftList(e) {
+  if (e && e.target !== document.getElementById('draft-modal')) return;
+  document.getElementById('draft-modal').classList.remove('open');
+}
+
+function renderDraftList() {
+  const all = getDrafts();
+  const keys = Object.keys(all).sort((a, b) =>
+    String(all[b].savedAt || '').localeCompare(String(all[a].savedAt || '')));
+  const box = document.getElementById('draft-list');
+  if (!box) return;
+  if (!keys.length) {
+    box.innerHTML = '<div style="text-align:center;padding:28px;color:var(--text3);font-size:13px">ไม่มี Draft ค้างอยู่</div>';
+    return;
+  }
+  const curKey = draftKey(document.getElementById('f-property').value, document.getElementById('f-period').value);
+  box.innerHTML = keys.map(k => {
+    const d = all[k];
+    const n = Object.keys(d.scores || {}).length;
+    const cr = Object.keys(d.criticalScores || {}).length;
+    const totalItems = AUDIT_STRUCTURE.sections.reduce((a, s) => a + s.items.length, 0);
+    const pct = Math.round(n / totalItems * 100);
+    const dt = d.savedAt ? new Date(d.savedAt).toLocaleString('th-TH',
+      { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
+    const isCur = k === curKey;
+    return `<div style="background:var(--surface2);border:1px solid ${isCur ? 'var(--accent)' : 'var(--border)'};border-radius:8px;padding:12px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+        <span style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--blue-light);background:rgba(26,111,191,.15);padding:2px 8px;border-radius:4px">${esc(d.property) || '—'}</span>
+        <span style="font-size:12px;color:var(--text2)">${periodLabel(d.period)}</span>
+        ${isCur ? '<span style="font-size:10px;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:1px 6px">กำลังกรอกอยู่</span>' : ''}
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">${esc(d.staff) || '(ยังไม่ระบุชื่อ)'}</div>
+      <div style="height:5px;background:var(--navy3);border-radius:3px;overflow:hidden;margin-bottom:6px">
+        <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:3px"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--text3)">กรอกแล้ว ${n}/${totalItems} ข้อ · Critical ${cr}/${AUDIT_STRUCTURE.criticalItems.length} · ${dt}</span>
+        <span style="display:flex;gap:6px">
+          <button onclick="loadDraftByKey('${k.replace(/'/g, "\\'")}')" style="padding:5px 12px;background:var(--blue);border:none;border-radius:6px;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font)">ทำต่อ</button>
+          <button onclick="deleteDraft('${k.replace(/'/g, "\\'")}')" style="padding:5px 10px;background:none;border:1px solid var(--border2);border-radius:6px;color:var(--text3);font-size:12px;cursor:pointer;font-family:var(--font)">ลบ</button>
+        </span>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function buildForm() {
@@ -1876,8 +2050,12 @@ async function submitForm() {
     localStorage.setItem('mjp_local_backup', JSON.stringify(bk));
   }
 
-  // ลบ Draft หลัง submit สำเร็จ
-  localStorage.removeItem(DRAFT_KEY);
+  // ลบ Draft ของหน่วยงาน/รอบนี้ หลัง submit สำเร็จ
+  (function(){
+    const all = getDrafts();
+    const k = draftKey(property, period);
+    if (all[k]) { delete all[k]; setDrafts(all); }
+  })();
   updateDraftBanner();
   // Switch to dashboard, sync จาก Sheet แล้วแสดงผล
   setTimeout(async ()=>{
@@ -2943,6 +3121,7 @@ function showToast(msg, type) {
 
 // ═══════════════════════ INIT ═══════════════════════
 buildForm();
+migrateOldDraft();
 loadDraft();
 showDataCount();
 
